@@ -1,0 +1,50 @@
+Logging to FLlogs/PPGC_outbits1.log
+[2024-11-12 03:02:33] Downloading CIFAR-10 dataset...
+Downloading https://www.cs.toronto.edu/~kriz/cifar-10-python.tar.gz to ./data/cifar-10-python.tar.gz
+Extracting ./data/cifar-10-python.tar.gz to ./data
+[2024-11-12 03:11:50] Round 1/10 started
+[2024-11-12 03:11:52] Training client 1
+[2024-11-12 03:11:52] Training step 1
+[2024-11-12 03:11:52] PPGC layer quantization for layer 1
+[2024-11-12 03:11:58] PPGC layer quantization for layer 2
+[2024-11-12 03:11:58] PPGC layer quantization for layer 3
+[2024-11-12 03:11:58] PPGC layer quantization for layer 4
+[2024-11-12 03:12:18] PPGC layer quantization for layer 5
+[2024-11-12 03:12:18] PPGC layer quantization for layer 6
+[2024-11-12 03:12:18] PPGC layer quantization for layer 7
+[2024-11-12 03:12:38] PPGC layer quantization for layer 8
+[2024-11-12 03:12:38] PPGC layer quantization for layer 9
+[2024-11-12 03:12:38] PPGC layer quantization for layer 10
+[2024-11-12 03:12:58] PPGC layer quantization for layer 11
+[2024-11-12 03:12:58] PPGC layer quantization for layer 12
+[2024-11-12 03:12:59] PPGC layer quantization for layer 13
+[2024-11-12 03:13:19] PPGC layer quantization for layer 14
+[2024-11-12 03:13:19] PPGC layer quantization for layer 15
+[2024-11-12 03:13:19] PPGC layer quantization for layer 16
+[2024-11-12 03:14:00] PPGC layer quantization for layer 17
+[2024-11-12 03:14:00] PPGC layer quantization for layer 18
+[2024-11-12 03:14:00] PPGC layer quantization for layer 19
+[2024-11-12 03:15:23] PPGC layer quantization for layer 20
+[2024-11-12 03:15:23] PPGC layer quantization for layer 21
+[2024-11-12 03:15:23] PPGC layer quantization for layer 22
+[2024-11-12 03:15:27] PPGC layer quantization for layer 23
+[2024-11-12 03:15:27] PPGC layer quantization for layer 24
+[2024-11-12 03:15:27] PPGC layer quantization for layer 25
+[2024-11-12 03:16:50] PPGC layer quantization for layer 26
+[2024-11-12 03:16:50] PPGC layer quantization for layer 27
+[2024-11-12 03:16:50] PPGC layer quantization for layer 28
+[2024-11-12 03:18:12] PPGC layer quantization for layer 29
+[2024-11-12 03:18:13] PPGC layer quantization for layer 30
+[2024-11-12 03:18:13] PPGC layer quantization for layer 31
+[2024-11-12 03:20:58] PPGC layer quantization for layer 32
+[2024-11-12 03:20:58] PPGC layer quantization for layer 33
+[2024-11-12 03:20:58] PPGC layer quantization for layer 34
+[2024-11-12 03:26:29] PPGC layer quantization for layer 35
+[2024-11-12 03:26:29] PPGC layer quantization for layer 36
+[2024-11-12 03:26:29] PPGC layer quantization for layer 37
+[2024-11-12 03:26:47] PPGC layer quantization for layer 38
+[2024-11-12 03:26:47] PPGC layer quantization for layer 39
+[2024-11-12 03:26:47] PPGC layer quantization for layer 40
+[2024-11-12 03:32:14] PPGC layer quantization for layer 41
+[2024-11-12 03:32:14] PPGC layer quantization for layer 42
+[2024-11-12 03:32:14] PPGC layer quantization for layer 43

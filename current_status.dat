@@ -1,0 +1,20 @@
+Privacy Preserving Gradient Compression. & Adaptive quantization, DP, Gradient Sparsification
+
+1. Solved the math problem and found the patterns between bits for quantization and probability hyperparameters in my scenario. Completed the math calculation on outputs and probabilities for different bits of quantization.
+    - Codes\multiplyC\overall.py  python .\Codes\multiplyC\overall.py --qutibit 1
+
+2. Running experiments on contrast algorithms. 
+    - Codes\train, results: Codes\train\logs\combined_accuracy_epoch_plot.png...
+    - Scenarios: local training, single GPU federated learning simulation
+    - Algorithms: QSGD, baseline, MVU
+
+3. Problems
+    - QSGD is simple but takes long time on gradient quantization. (Simple mapping)
+    - MY method takes longer time on calculating probabilities for each gradient.
+    - Need to find the threshold for changing the quantization bit.
+      - Tests on L2 norm and absolute values of gradients: Codes\l2_norms_plot.png...
+
+4. To do
+    - Threshold setting for using different quantization bits.
+    - Variance decrease by tuning probability hyperparameters and sparsification ratio.
+    - Improve algorithmic efficiency (Maybe by discretising the gradient before quantization)

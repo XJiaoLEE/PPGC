@@ -1,0 +1,5 @@
+Logging to Codes/train/logs\PPGC_outbits2.log
+[2024-11-12 11:31:04] CIFAR-10 dataset already exists.
+create ppgc:
+finished creating ppgc
+[2024-11-12 11:31:07] Start training for the 1th step
