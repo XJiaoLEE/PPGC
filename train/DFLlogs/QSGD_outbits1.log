@@ -1,0 +1,2 @@
+[2024-11-13 11:54:27,600] [INFO] Logging to Codes/train/DFLlogs\QSGD_outbits1.log
+[2024-11-13 11:54:27,600] [INFO] Starting distributed training with world size 1, mechanism QSGD

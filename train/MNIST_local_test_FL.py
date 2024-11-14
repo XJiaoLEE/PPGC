@@ -6,9 +6,10 @@ import torch.nn as nn
 import torch.optim as optim
 import numpy as np
 from datetime import datetime
-from torchvision import datasets, transforms, models
+from torchvision import datasets, transforms
 from torch.utils.data import DataLoader, random_split
 from PPGC import PPGC  # 导入 PPGC 模块
+
 print(torch.cuda.is_available())  # 检查 CUDA 是否可用
 print(torch.cuda.device_count())  # 检查系统中 GPU 的数量
 print(f"PyTorch version: {torch.__version__}")
@@ -27,11 +28,10 @@ epsilon = 1.0            # PPGC 使用的 epsilon 值
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 
-# CIFAR-10数据集的预处理
+# MNIST 数据集的预处理
 transform = transforms.Compose([
-    transforms.Resize((32, 32)),  # CIFAR-10原始尺寸为32x32，不调整尺寸
     transforms.ToTensor(),
-    transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))  # 使用参考代码中的均值和标准差
+    transforms.Normalize((0.1307,), (0.3081,))  # MNIST 的均值和标准差
 ])
 
 # 处理命令行参数
@@ -42,7 +42,7 @@ parser.add_argument('--out_bits', type=int, default=2, help='Number of bits for 
 args = parser.parse_args()
 
 # 创建日志文件夹和日志文件名，并重定向输出
-log_dir = "Codes/train/FLlogs"
+log_dir = "Codes/train/MNISTFLlogs"
 os.makedirs(log_dir, exist_ok=True)  # 如果文件夹不存在则创建
 log_filename = os.path.join(log_dir, f"1113{args.mechanism}_outbits{args.out_bits}.log")
 sys.stdout = open(log_filename, "w")
@@ -63,56 +63,68 @@ def quantize(x, d):
     new_level = previous_level + is_next_level
     return np.sign(x) * norm * new_level / d
 
-# 检查数据集是否存在并加载数据
+# MNIST 数据加载
 def load_data():
     data_path = './data'
-    if not os.path.exists(os.path.join(data_path, 'cifar-10-batches-py')):
-        log_with_time("Downloading CIFAR-10 dataset...")
-        dataset = datasets.CIFAR10(root=data_path, train=True, download=True, transform=transform)
-    else:
-        log_with_time("CIFAR-10 dataset already exists.")
-        dataset = datasets.CIFAR10(root=data_path, train=True, download=False, transform=transform)
-    
-    client_datasets = random_split(dataset, [len(dataset) // NUM_CLIENTS] * NUM_CLIENTS)
-    return client_datasets
+    train_dataset = datasets.MNIST(root=data_path, train=True, download=True, transform=transform)
+    test_dataset = datasets.MNIST(root=data_path, train=False, download=True, transform=transform)
+    client_datasets = random_split(train_dataset, [len(train_dataset) // NUM_CLIENTS] * NUM_CLIENTS)
+    return client_datasets, DataLoader(test_dataset, batch_size=BATCH_SIZE)
 
-# 定义客户端的ResNet-18模型
+# 定义 ConvNet 模型
+class ConvNet(nn.Module):
+    def __init__(self):
+        super(ConvNet, self).__init__()
+        self.conv1 = nn.Conv2d(1, 16, 8, 2, padding=2)
+        self.conv2 = nn.Conv2d(16, 32, 4, 2, padding=0)
+        self.fc1 = nn.Linear(32 * 5 * 5, 32)
+        self.fc2 = nn.Linear(32, 10)
+
+    def forward(self, x):
+        x = x.view(-1, 1, 28, 28)
+        x = self.conv1(x)
+        x = torch.tanh(x)
+        x = nn.functional.avg_pool2d(x, 1)
+        x = self.conv2(x)
+        x = torch.tanh(x)
+        x = nn.functional.avg_pool2d(x, 1)
+        x = torch.flatten(x, 1)
+        x = self.fc1(x)
+        x = torch.tanh(x)
+        x = self.fc2(x)
+        return x
+
+# 创建模型
 def create_model():
-    model = models.resnet18(weights=None)  # 使用 weights=None 替代 pretrained=False
-    model.fc = nn.Linear(model.fc.in_features, 10)  # 修改输出层以适应CIFAR-10的10类
-    return model.to(device)  # 将模型加载到设备（CPU或GPU）
+    return ConvNet().to(device)
 
 # 在每个客户端上训练模型，并在上传前进行量化
 def train_client(model, dataloader, epochs=1, mechanism='baseline', out_bits=2):
     model.train()
     optimizer = optim.SGD(model.parameters(), lr=LEARNING_RATE, momentum=0.9)
     criterion = nn.CrossEntropyLoss()
-    
-    # 创建 PPGC 实例
-    ppgc_instance = PPGC(epsilon)
+    ppgc_instance = PPGC(epsilon,out_bits)  # 创建 PPGC 实例
 
     for epoch in range(epochs):
         for step, (data, target) in enumerate(dataloader):
             log_with_time(f"Training step {step + 1}")
-            data, target = data.to(device), target.to(device)  # 将数据和目标加载到设备上
+            data, target = data.to(device), target.to(device)
             optimizer.zero_grad()
             output = model(data)
             loss = criterion(output, target)
             loss.backward()
 
-            # 如果使用 QSGD 或 PPGC，在梯度上传之前对梯度量化
+            # 根据机制对梯度进行量化
             if mechanism == 'QSGD':
-                for idx, param in enumerate(model.parameters(), 1):
-                    with torch.no_grad():
-                        #log_with_time(f"QSGD layer quantization for layer {idx}")
+                for param in model.parameters():
+                    if param.grad is not None:
                         param_np = param.grad.cpu().numpy()
                         quantized_gradient = quantize(param_np, 2 ** out_bits)
                         param.grad = torch.tensor(quantized_gradient, dtype=param.dtype).to(device)
 
             elif mechanism == 'PPGC':
-                for idx, param in enumerate(model.parameters(), 1):
-                    with torch.no_grad():
-                        #log_with_time(f"PPGC layer quantization for layer {idx}")
+                for param in model.parameters():
+                    if param.grad is not None:
                         param_np = param.grad.cpu().numpy()
                         quantized_gradient = ppgc_instance.map_gradient(param_np, out_bits)
                         param.grad = torch.tensor(quantized_gradient, dtype=param.dtype).to(device)
@@ -146,34 +158,25 @@ def test_model(model, test_loader):
 
 # 联邦学习主循环
 def federated_learning(mechanism):
-    client_datasets = load_data()
-    test_dataset = datasets.CIFAR10(root='./data', train=False, transform=transform)
-    test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE)
-
+    client_datasets, test_loader = load_data()
     global_model = create_model()
 
     for round in range(NUM_ROUNDS):
         log_with_time(f"Round {round + 1}/{NUM_ROUNDS} started")
-
-        # 创建每个客户端的模型
         client_models = [create_model() for _ in range(NUM_CLIENTS)]
         for client_model in client_models:
-            client_model.load_state_dict(global_model.state_dict())  # 初始化为全局模型权重
+            client_model.load_state_dict(global_model.state_dict())
 
-        # 每个客户端本地训练
         for i, client_dataset in enumerate(client_datasets):
             log_with_time(f"Training client {i + 1}")
             client_loader = DataLoader(client_dataset, batch_size=BATCH_SIZE, shuffle=True)
             train_client(client_models[i], client_loader, EPOCHS_PER_CLIENT, mechanism=mechanism, out_bits=args.out_bits)
 
-        # 聚合客户端的模型到全局模型
         aggregate_global_model(global_model, client_models)
-
-        # 测试全局模型
         accuracy = test_model(global_model, test_loader)
         log_with_time(f"End of round {round + 1}, global model accuracy: {accuracy:.4f}")
 
-# 运行联邦学习，传入机制参数
+# 运行联邦学习
 federated_learning(args.mechanism)
 
 # 关闭日志文件
