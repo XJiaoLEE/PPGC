@@ -11,6 +11,8 @@ from torch.utils.data import DataLoader, random_split
 from PPGC import PPGC  # 导入 PPGC 模块
 import torch.distributed as dist
 import torch.multiprocessing as mp
+from torch.nn.parallel import DistributedDataParallel as DDP
+import random
 
 print(torch.cuda.is_available())  # 检查 CUDA 是否可用
 print(torch.cuda.device_count())  # 检查系统中 GPU 的数量
@@ -19,7 +21,6 @@ print(f"Is CUDA available: {torch.cuda.is_available()}")
 print(f"CUDA version: {torch.version.cuda}")
 
 # 参数设置
-NUM_CLIENTS = 10         # 客户端数量
 NUM_ROUNDS = 10          # 联邦学习轮数
 EPOCHS_PER_CLIENT = 1    # 每轮客户端本地训练次数
 BATCH_SIZE = 32          # 批大小
@@ -46,6 +47,9 @@ parser.add_argument('--rank', type=int, required=True, help='Rank of the current
 parser.add_argument('--dist_backend', type=str, default='nccl', help='Distributed backend')
 parser.add_argument('--dist_url', type=str, default='tcp://<master_ip>:<port>', help='URL used to set up distributed training')
 args = parser.parse_args()
+
+# 初始化进程组
+dist.init_process_group(backend=args.dist_backend, init_method=args.dist_url, world_size=args.world_size, rank=args.rank)
 
 # 创建日志文件夹和日志文件名，并重定向输出
 log_dir = "Codes/train/MNISTFLlogs"
@@ -74,7 +78,7 @@ def load_data():
     data_path = './data'
     train_dataset = datasets.MNIST(root=data_path, train=True, download=True, transform=transform)
     test_dataset = datasets.MNIST(root=data_path, train=False, download=True, transform=transform)
-    client_datasets = random_split(train_dataset, [len(train_dataset) // NUM_CLIENTS] * NUM_CLIENTS)
+    client_datasets = random_split(train_dataset, [len(train_dataset) // args.world_size] * args.world_size)
     return client_datasets, DataLoader(test_dataset, batch_size=BATCH_SIZE)
 
 # 定义 ConvNet 模型
@@ -102,11 +106,12 @@ class ConvNet(nn.Module):
 
 # 创建模型
 def create_model():
-    return ConvNet().to(device)
+    model = ConvNet().to(device)
+    model = DDP(model, device_ids=[args.rank % torch.cuda.device_count()])
+    return model
 
 # 每个客户端上训练模型，并在上传前进行量化
 def train_client(rank, world_size, mechanism='baseline', out_bits=2):
-    dist.init_process_group(backend='nccl', init_method=args.dist_url, world_size=world_size, rank=rank)
     client_datasets, test_loader = load_data()
     model = create_model()
     model.train()
@@ -126,14 +131,14 @@ def train_client(rank, world_size, mechanism='baseline', out_bits=2):
 
             # 根据机制对梯度进行量化
             if mechanism == 'QSGD':
-                for param in model.parameters():
+                for param in model.module.parameters():
                     if param.grad is not None:
                         param_np = param.grad.cpu().numpy()
                         quantized_gradient = quantize(param_np, 2 ** out_bits)
                         param.grad = torch.tensor(quantized_gradient, dtype=param.dtype).to(device)
 
             elif mechanism == 'PPGC':
-                for param in model.parameters():
+                for param in model.module.parameters():
                     if param.grad is not None:
                         param_np = param.grad.cpu().numpy()
                         quantized_gradient = ppgc_instance.map_gradient(param_np, out_bits)
@@ -141,14 +146,8 @@ def train_client(rank, world_size, mechanism='baseline', out_bits=2):
 
             optimizer.step()
 
-    # 合并模型参数
-    log_with_time(f"Client {rank}, syncing model parameters")
-    for param in model.parameters():
-        dist.all_reduce(param.data, op=dist.ReduceOp.SUM)
-        param.data /= world_size
-
     # 测试模型准确性
-    test_model(model, test_loader)
+    return model
 
 # 测试模型准确性
 def test_model(model, test_loader):
@@ -165,11 +164,34 @@ def test_model(model, test_loader):
     log_with_time(f"Model accuracy: {accuracy:.4f}")
     return accuracy
 
+# 联邦学习主循环
+def federated_learning(mechanism):
+    client_datasets, test_loader = load_data()
+    global_model = create_model()
+
+    for round in range(NUM_ROUNDS):
+        log_with_time(f"Round {round + 1}/{NUM_ROUNDS} started")
+
+        client_model = train_client(args.rank, args.world_size, mechanism=mechanism, out_bits=args.out_bits)
+
+        # 聚合客户端模型参数
+        aggregate_global_model(global_model.module, [client_model.module])
+        accuracy = test_model(global_model, test_loader)
+        log_with_time(f"End of round {round + 1}, global model accuracy: {accuracy:.4f}")
+
+# 聚合客户端模型参数
+def aggregate_global_model(global_model, client_models):
+    log_with_time("Aggregating global model from client models")
+    global_dict = global_model.state_dict()
+    for key in global_dict.keys():
+        global_dict[key] = torch.stack(
+            [client_model.state_dict()[key].float().to(device) for client_model in client_models], 0
+        ).mean(0)
+    global_model.load_state_dict(global_dict)
+
 # 运行联邦学习
 if __name__ == "__main__":
-    world_size = args.world_size
-    rank = args.rank
-    train_client(rank, world_size, args.mechanism, args.out_bits)
+    federated_learning(args.mechanism)
 
 # 关闭日志文件
 sys.stdout.close()
