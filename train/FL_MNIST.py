@@ -106,7 +106,7 @@ def create_model():
 
 # 每个客户端上训练模型，并在上传前进行量化
 def train_client(rank, world_size, mechanism='baseline', out_bits=2):
-    dist.init_process_group(backend=args.dist_backend, init_method=args.dist_url, world_size=world_size, rank=rank)
+    dist.init_process_group(backend='gloo', init_method=args.dist_url, world_size=world_size, rank=rank)
     client_datasets, test_loader = load_data()
     model = create_model()
     model.train()
