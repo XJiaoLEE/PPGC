@@ -2,7 +2,7 @@
 
 run_MNIST_baseline_master:
 	@echo "Starting master node for distributed training with $(WORLD_SIZE) nodes..."
-	python train\FL_MNIST.py --world_size=$(world_size) --rank=$(rank) --dist_url=tcp://10.120.35.3:20008 --mechanism=baseline --out_bits=1
+	python3 train\FL_MNIST.py --world_size=$(world_size) --rank=$(rank) --dist_url=tcp://10.120.35.3:20008 --mechanism=baseline --out_bits=1
 #python FL_MNIST.py --world_size=1 --rank=0 --dist_url=tcp://10.7.161.177:23456 --mechanism=baseline --out_bits=1
 
 
