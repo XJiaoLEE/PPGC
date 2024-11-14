@@ -9,6 +9,8 @@ from datetime import datetime
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader, random_split
 from PPGC import PPGC  # 导入 PPGC 模块
+import torch.distributed as dist
+import torch.multiprocessing as mp
 
 print(torch.cuda.is_available())  # 检查 CUDA 是否可用
 print(torch.cuda.device_count())  # 检查系统中 GPU 的数量
@@ -39,12 +41,16 @@ parser = argparse.ArgumentParser(description='Federated Learning with mechanism 
 parser.add_argument('--mechanism', type=str, default='baseline', choices=['baseline', 'PPGC', 'QSGD'],
                     help='Choose the aggregation mechanism: "baseline", "PPGC" or "QSGD"')
 parser.add_argument('--out_bits', type=int, default=2, help='Number of bits for QSGD or PPGC quantization')
+parser.add_argument('--world_size', type=int, default=2, help='Number of processes participating in the job')
+parser.add_argument('--rank', type=int, required=True, help='Rank of the current process')
+parser.add_argument('--dist_backend', type=str, default='nccl', help='Distributed backend')
+parser.add_argument('--dist_url', type=str, default='tcp://<master_ip>:<port>', help='URL used to set up distributed training')
 args = parser.parse_args()
 
 # 创建日志文件夹和日志文件名，并重定向输出
 log_dir = "Codes/train/MNISTFLlogs"
 os.makedirs(log_dir, exist_ok=True)  # 如果文件夹不存在则创建
-log_filename = os.path.join(log_dir, f"1114{args.mechanism}_outbits{args.out_bits}.log")
+log_filename = os.path.join(log_dir, f"MNIST_{args.mechanism}_outbits{args.out_bits}_rank{args.rank}_1114.log")
 sys.stdout = open(log_filename, "w")
 print(f"Logging to {log_filename}")
 
@@ -98,16 +104,20 @@ class ConvNet(nn.Module):
 def create_model():
     return ConvNet().to(device)
 
-# 在每个客户端上训练模型，并在上传前进行量化
-def train_client(model, dataloader, epochs=1, mechanism='baseline', out_bits=2):
+# 每个客户端上训练模型，并在上传前进行量化
+def train_client(rank, world_size, mechanism='baseline', out_bits=2):
+    dist.init_process_group(backend=args.dist_backend, init_method=args.dist_url, world_size=world_size, rank=rank)
+    client_datasets, test_loader = load_data()
+    model = create_model()
     model.train()
     optimizer = optim.SGD(model.parameters(), lr=LEARNING_RATE, momentum=0.9)
     criterion = nn.CrossEntropyLoss()
-    ppgc_instance = PPGC(epsilon,out_bits)  # 创建 PPGC 实例
+    ppgc_instance = PPGC(epsilon, out_bits)  # 创建 PPGC 实例
 
-    for epoch in range(epochs):
-        for step, (data, target) in enumerate(dataloader):
-            log_with_time(f"Training step {step + 1}")
+    client_loader = DataLoader(client_datasets[rank], batch_size=BATCH_SIZE, shuffle=True)
+    for epoch in range(EPOCHS_PER_CLIENT):
+        for step, (data, target) in enumerate(client_loader):
+            log_with_time(f"Client {rank}, Training step {step + 1}")
             data, target = data.to(device), target.to(device)
             optimizer.zero_grad()
             output = model(data)
@@ -131,15 +141,14 @@ def train_client(model, dataloader, epochs=1, mechanism='baseline', out_bits=2):
 
             optimizer.step()
 
-# 聚合客户端模型参数
-def aggregate_global_model(global_model, client_models):
-    log_with_time("Aggregating global model from client models")
-    global_dict = global_model.state_dict()
-    for key in global_dict.keys():
-        global_dict[key] = torch.stack(
-            [client_model.state_dict()[key].float().to(device) for client_model in client_models], 0
-        ).mean(0)
-    global_model.load_state_dict(global_dict)
+    # 合并模型参数
+    log_with_time(f"Client {rank}, syncing model parameters")
+    for param in model.parameters():
+        dist.all_reduce(param.data, op=dist.ReduceOp.SUM)
+        param.data /= world_size
+
+    # 测试模型准确性
+    test_model(model, test_loader)
 
 # 测试模型准确性
 def test_model(model, test_loader):
@@ -156,28 +165,11 @@ def test_model(model, test_loader):
     log_with_time(f"Model accuracy: {accuracy:.4f}")
     return accuracy
 
-# 联邦学习主循环
-def federated_learning(mechanism):
-    client_datasets, test_loader = load_data()
-    global_model = create_model()
-
-    for round in range(NUM_ROUNDS):
-        log_with_time(f"Round {round + 1}/{NUM_ROUNDS} started")
-        client_models = [create_model() for _ in range(NUM_CLIENTS)]
-        for client_model in client_models:
-            client_model.load_state_dict(global_model.state_dict())
-
-        for i, client_dataset in enumerate(client_datasets):
-            log_with_time(f"Training client {i + 1}")
-            client_loader = DataLoader(client_dataset, batch_size=BATCH_SIZE, shuffle=True)
-            train_client(client_models[i], client_loader, EPOCHS_PER_CLIENT, mechanism=mechanism, out_bits=args.out_bits)
-
-        aggregate_global_model(global_model, client_models)
-        accuracy = test_model(global_model, test_loader)
-        log_with_time(f"End of round {round + 1}, global model accuracy: {accuracy:.4f}")
-
 # 运行联邦学习
-federated_learning(args.mechanism)
+if __name__ == "__main__":
+    world_size = args.world_size
+    rank = args.rank
+    train_client(rank, world_size, args.mechanism, args.out_bits)
 
 # 关闭日志文件
 sys.stdout.close()
