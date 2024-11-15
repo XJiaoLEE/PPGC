@@ -76,9 +76,10 @@ def run_commands_in_parallel():
         for hostname, credentials in nodes.items():
             username = credentials['user']
             password = credentials['password']
+            remote_directory = credentials['remote_directory']
             
             # 根据模板生成远程主机要执行的命令
-            command = command_template.format(world_size=world_size, rank=rank)
+            command = command_template.format(remote_directory=remote_directory, world_size=world_size, rank=rank)
             
             # 提交远程任务
             futures.append(executor.submit(ssh_execute_command, hostname, username, password, command))
