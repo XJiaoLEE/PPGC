@@ -21,7 +21,7 @@ current_host_rank = 1  # 当前主机的 rank
 world_size = len(nodes)
 
 # 动态命令模板，用户可以在运行时修改它
-command_template = "cd {remote_directory} && make run_MNIST_PPGC_master world_size={world_size} rank={rank}"
+command_template = "cd {remote_directory} && git pull origin main && make run_MNIST_PPGC_master world_size={world_size} rank={rank}"
 
 # 执行 SSH 命令的函数，不设置超时时间并实时读取输出，包括 tqdm 进度条
 def ssh_execute_command(hostname, username, password, command):
