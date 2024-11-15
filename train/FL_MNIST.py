@@ -52,7 +52,7 @@ args = parser.parse_args()
 dist.init_process_group(backend=args.dist_backend, init_method=args.dist_url, world_size=args.world_size, rank=args.rank)
 
 # 创建日志文件夹和日志文件名，并重定向输出
-log_dir = "Codes/train/MNISTFLlogs"
+log_dir = "MNISTFLlogs"
 os.makedirs(log_dir, exist_ok=True)  # 如果文件夹不存在则创建
 log_filename = os.path.join(log_dir, f"MNIST_{args.mechanism}_outbits{args.out_bits}_rank{args.rank}_1114.log")
 sys.stdout = open(log_filename, "w")
