@@ -179,7 +179,7 @@ def federated_learning(mechanism):
         log_with_time(f"Local model accuracy before aggregation: {local_accuracy:.4f}")
 
         # 聚合客户端模型参数
-dist.barrier()  # 确保所有节点都完成训练再进行聚合
+        dist.barrier()  # 确保所有节点都完成训练再进行聚合
         aggregate_global_model(global_model.module, client_model.module)
 
         # 聚合后测试模型
