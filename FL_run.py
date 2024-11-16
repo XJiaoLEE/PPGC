@@ -3,6 +3,7 @@ import socket
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import subprocess
 import select
+import os
 
 # 节点信息，包括远程主机的IP地址、用户名、密码和用户的XXXXX/PPGC目录
 nodes = {
@@ -22,6 +23,20 @@ world_size = len(nodes)
 
 # 动态命令模板，用户可以在运行时修改它
 command_template = "cd {remote_directory} && git pull origin main && make run_MNIST_PPGC_master world_size={world_size} rank={rank}"
+
+# 检查并杀死占用指定端口的进程
+def kill_process_on_port(port):
+    try:
+        result = subprocess.run(["lsof", "-t", f"-i:{port}"], capture_output=True, text=True)
+        if result.stdout:
+            pid = result.stdout.strip()
+            print(f"端口 {port} 被占用，正在杀死进程 {pid}...")
+            os.kill(int(pid), 9)
+            print(f"进程 {pid} 已被杀死。")
+        else:
+            print(f"端口 {port} 未被占用。")
+    except Exception as e:
+        print(f"检查或杀死进程时出错: {e}")
 
 # 执行 SSH 命令的函数，不设置超时时间并实时读取输出，包括 tqdm 进度条
 def ssh_execute_command(hostname, username, password, command):
@@ -69,11 +84,26 @@ def ssh_execute_command(hostname, username, password, command):
         
 # 并行执行远程和本地命令
 def run_commands_in_parallel():
+    # 检查并杀死占用 20008 端口的进程
+    kill_process_on_port(20008)
+    
     with ThreadPoolExecutor() as executor:
         futures = []
-        # 为每个远程主机添加任务
-        rank = 0 
+        # rank=0的节点优先运行
+        rank = 0
+        rank0_hostname = "192.168.1.248"
+        rank0_credentials = nodes[rank0_hostname]
+        username = rank0_credentials['user']
+        password = rank0_credentials['password']
+        remote_directory = rank0_credentials['remote_directory']
+        command = command_template.format(remote_directory=remote_directory, world_size=world_size, rank=rank)
+        futures.append(executor.submit(ssh_execute_command, rank0_hostname, username, password, command))
+
+        # 为其他远程主机添加任务
+        rank = 1
         for hostname, credentials in nodes.items():
+            if hostname == rank0_hostname:
+                continue
             username = credentials['user']
             password = credentials['password']
             remote_directory = credentials['remote_directory']
