@@ -151,7 +151,7 @@ def train_client(rank, world_size, mechanism='baseline', out_bits=1):
 
 # 测试模型准确性
 def test_model(model, test_loader):
-    log_with_time("Testing global model accuracy")
+    log_with_time("Testing model accuracy")
     model.eval()
     correct = 0
     with torch.no_grad():
@@ -174,31 +174,27 @@ def federated_learning(mechanism):
 
         client_model = train_client(args.rank, args.world_size, mechanism=mechanism, out_bits=args.out_bits)
 
+        # 聚合前测试本地模型
+        local_accuracy = test_model(client_model, test_loader)
+        log_with_time(f"Local model accuracy before aggregation: {local_accuracy:.4f}")
+
         # 聚合客户端模型参数
-        # aggregate_global_model(global_model.module, [client_model.module])
-        dist.barrier()  # 确保所有节点都完成训练再进行聚合
-        aggregate_global_model(global_model.module)
-        accuracy = test_model(global_model, test_loader)
-        log_with_time(f"End of round {round + 1}, global model accuracy: {accuracy:.4f}")
+dist.barrier()  # 确保所有节点都完成训练再进行聚合
+        aggregate_global_model(global_model.module, client_model.module)
+
+        # 聚合后测试模型
+        aggregated_accuracy = test_model(global_model, test_loader)
+        log_with_time(f"Global model accuracy after aggregation: {aggregated_accuracy:.4f}")
 
 # 聚合客户端模型参数
-# def aggregate_global_model(global_model, client_models):
-#     log_with_time("Aggregating global model from client models")
-#     global_dict = global_model.state_dict()
-#     for key in global_dict.keys():
-#         global_dict[key] = torch.stack(
-#             [client_model.state_dict()[key].float().to(device) for client_model in client_models], 0
-#         ).mean(0)
-#     global_model.load_state_dict(global_dict)
-
-def aggregate_global_model(global_model):
-    log_with_time("Aggregating global model from all clients")
+def aggregate_global_model(global_model, client_model):
+    log_with_time("Aggregating global model from client models")
 
     # 遍历每个参数，通过 all_reduce 汇总每个客户端的梯度
-    for param in global_model.parameters():
-        dist.all_reduce(param.data, op=dist.ReduceOp.SUM)
-        param.data /= args.world_size  # 对参数取平均，形成全局模型
-
+    for param_global, param_client in zip(global_model.parameters(), client_model.parameters()):
+        param_global.data = param_client.data.clone()
+        dist.all_reduce(param_global.data, op=dist.ReduceOp.SUM)
+        param_global.data /= args.world_size  # 对参数取平均，形成全局模型
 
 # 运行联邦学习
 if __name__ == "__main__":
