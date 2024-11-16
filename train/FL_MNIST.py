@@ -175,7 +175,9 @@ def federated_learning(mechanism):
         client_model = train_client(args.rank, args.world_size, mechanism=mechanism, out_bits=args.out_bits)
 
         # 聚合客户端模型参数
-        aggregate_global_model(global_model.module, [client_model.module])
+        # aggregate_global_model(global_model.module, [client_model.module])
+        dist.barrier()  # 确保所有节点都完成训练再进行聚合
+        aggregate_global_model(global_model.module)
         accuracy = test_model(global_model, test_loader)
         log_with_time(f"End of round {round + 1}, global model accuracy: {accuracy:.4f}")
 
