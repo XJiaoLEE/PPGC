@@ -21,11 +21,11 @@ print(f"Is CUDA available: {torch.cuda.is_available()}")
 print(f"CUDA version: {torch.version.cuda}")
 
 # 参数设置
-NUM_ROUNDS = 100          # 联邦学习轮数
+NUM_ROUNDS = 10          # 联邦学习轮数
 EPOCHS_PER_CLIENT = 1    # 每轮客户端本地训练次数
 BATCH_SIZE = 32          # 批大小
 LEARNING_RATE = 0.001    # 学习率
-epsilon = 10.0            # PPGC 使用的 epsilon 值
+epsilon = 5.0            # PPGC 使用的 epsilon 值
 
 # 检测是否有可用的 GPU，如果没有则使用 CPU
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -180,14 +180,23 @@ def federated_learning(mechanism):
         log_with_time(f"End of round {round + 1}, global model accuracy: {accuracy:.4f}")
 
 # 聚合客户端模型参数
-def aggregate_global_model(global_model, client_models):
-    log_with_time("Aggregating global model from client models")
-    global_dict = global_model.state_dict()
-    for key in global_dict.keys():
-        global_dict[key] = torch.stack(
-            [client_model.state_dict()[key].float().to(device) for client_model in client_models], 0
-        ).mean(0)
-    global_model.load_state_dict(global_dict)
+# def aggregate_global_model(global_model, client_models):
+#     log_with_time("Aggregating global model from client models")
+#     global_dict = global_model.state_dict()
+#     for key in global_dict.keys():
+#         global_dict[key] = torch.stack(
+#             [client_model.state_dict()[key].float().to(device) for client_model in client_models], 0
+#         ).mean(0)
+#     global_model.load_state_dict(global_dict)
+
+def aggregate_global_model(global_model):
+    log_with_time("Aggregating global model from all clients")
+
+    # 遍历每个参数，通过 all_reduce 汇总每个客户端的梯度
+    for param in global_model.parameters():
+        dist.all_reduce(param.data, op=dist.ReduceOp.SUM)
+        param.data /= args.world_size  # 对参数取平均，形成全局模型
+
 
 # 运行联邦学习
 if __name__ == "__main__":
