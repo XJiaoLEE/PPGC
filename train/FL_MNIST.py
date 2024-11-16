@@ -25,7 +25,7 @@ NUM_ROUNDS = 10          # 联邦学习轮数
 EPOCHS_PER_CLIENT = 1    # 每轮客户端本地训练次数
 BATCH_SIZE = 32          # 批大小
 LEARNING_RATE = 0.001    # 学习率
-epsilon = 1.0            # PPGC 使用的 epsilon 值
+epsilon = 2.0            # PPGC 使用的 epsilon 值
 
 # 检测是否有可用的 GPU，如果没有则使用 CPU
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -54,7 +54,7 @@ dist.init_process_group(backend=args.dist_backend, init_method=args.dist_url, wo
 # 创建日志文件夹和日志文件名，并重定向输出
 log_dir = "MNISTFLlogs"
 os.makedirs(log_dir, exist_ok=True)  # 如果文件夹不存在则创建
-log_filename = os.path.join(log_dir, f"MNIST_{args.mechanism}_outbits{args.out_bits}_rank{args.rank}_1114.log")
+log_filename = os.path.join(log_dir, f"MNIST_{args.mechanism}_outbits{args.out_bits}_epsilon{epsilon}_rank{args.rank}_1114.log")
 sys.stdout = open(log_filename, "w")
 print(f"Logging to {log_filename}")
 
@@ -111,7 +111,7 @@ def create_model():
     return model
 
 # 每个客户端上训练模型，并在上传前进行量化
-def train_client(rank, world_size, mechanism='baseline', out_bits=2):
+def train_client(rank, world_size, mechanism='baseline', out_bits=1):
     client_datasets, test_loader = load_data()
     model = create_model()
     model.train()
