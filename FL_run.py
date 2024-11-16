@@ -23,7 +23,7 @@ current_host_rank = 1  # 当前主机的 rank
 world_size = len(nodes)
 
 # 动态命令模板，用户可以在运行时修改它
-command_template = "cd {remote_directory} && git pull origin main && make run_MNIST_QSGD_master world_size={world_size} rank={rank}"
+command_template = "cd {remote_directory} && git pull origin main && make run_MNIST_baseline_master world_size={world_size} rank={rank}"
 
 # 检查并杀死占用指定端口的进程
 def kill_process_on_port(port):
