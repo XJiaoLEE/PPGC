@@ -4,6 +4,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import subprocess
 import select
 import os
+import time
 
 # 节点信息，包括远程主机的IP地址、用户名、密码和用户的XXXXX/PPGC目录
 nodes = {
@@ -87,18 +88,18 @@ def run_commands_in_parallel():
     # 检查并杀死占用 20008 端口的进程
     kill_process_on_port(20008)
     
+    # 先执行 rank=0 的节点
+    rank0_hostname = "192.168.1.248"
+    rank0_credentials = nodes[rank0_hostname]
+    username = rank0_credentials['user']
+    password = rank0_credentials['password']
+    remote_directory = rank0_credentials['remote_directory']
+    command = command_template.format(remote_directory=remote_directory, world_size=world_size, rank=0)
+    ssh_execute_command(rank0_hostname, username, password, command)
+
+    # 等待 rank=0 完成后再执行其他节点
     with ThreadPoolExecutor() as executor:
         futures = []
-        # rank=0的节点优先运行
-        rank = 0
-        rank0_hostname = "192.168.1.248"
-        rank0_credentials = nodes[rank0_hostname]
-        username = rank0_credentials['user']
-        password = rank0_credentials['password']
-        remote_directory = rank0_credentials['remote_directory']
-        command = command_template.format(remote_directory=remote_directory, world_size=world_size, rank=rank)
-        futures.append(executor.submit(ssh_execute_command, rank0_hostname, username, password, command))
-
         # 为其他远程主机添加任务
         rank = 1
         for hostname, credentials in nodes.items():
