@@ -122,6 +122,7 @@ def train_client(rank, world_size, mechanism='baseline', out_bits=1):
         ppgc_instance = PPGC(epsilon, out_bits)  # 创建 PPGC 实例
     elif mechanism == 'ONEBIT':
         onebit_instance = QuantizedSGDCommunicator()
+        onebit_instance.initialize_error_feedback(model)
 
     client_loader = DataLoader(client_datasets[rank], batch_size=BATCH_SIZE, shuffle=True)
     for epoch in range(EPOCHS_PER_CLIENT):
