@@ -52,6 +52,7 @@ class QuantizedSGDCommunicator:
         return quantized_local_gradients
 
 
-    def apply_1bit_sgd_quantization(self, local_gradients):
+    def apply_1bit_sgd_quantization(self, param):
         # Perform local quantization with error feedback
-        quantized_local_gradients = self.local_quantize(local_gradients)
+        
+        quantized_local_gradients = self.local_quantize(param)

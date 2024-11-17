@@ -152,8 +152,7 @@ def train_client(rank, world_size, mechanism='baseline', out_bits=1):
             elif mechanism == 'ONEBIT':
                 for param in model.module.parameters():
                     if param.grad is not None:
-                        param_np = param.grad.cpu().numpy()
-                        quantized_gradient = onebit_instance.apply_1bit_sgd_quantization(param_np)
+                        quantized_gradient = onebit_instance.apply_1bit_sgd_quantization(param)
                         param.grad = torch.tensor(quantized_gradient, dtype=param.dtype).to(device)
 
             optimizer.step()
