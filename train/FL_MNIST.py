@@ -9,6 +9,7 @@ from datetime import datetime
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader, random_split
 from PPGC import PPGC  # 导入 PPGC 模块
+from ONEBIT import QuantizedSGDCommunicator
 import torch.distributed as dist
 import torch.multiprocessing as mp
 from torch.nn.parallel import DistributedDataParallel as DDP
@@ -117,7 +118,10 @@ def train_client(rank, world_size, mechanism='baseline', out_bits=1):
     model.train()
     optimizer = optim.SGD(model.parameters(), lr=LEARNING_RATE, momentum=0.9)
     criterion = nn.CrossEntropyLoss()
-    ppgc_instance = PPGC(epsilon, out_bits)  # 创建 PPGC 实例
+    if mechanism == 'PPGC':
+        ppgc_instance = PPGC(epsilon, out_bits)  # 创建 PPGC 实例
+    elif mechanism == 'ONEBIT':
+        onebit_instance = QuantizedSGDCommunicator()
 
     client_loader = DataLoader(client_datasets[rank], batch_size=BATCH_SIZE, shuffle=True)
     for epoch in range(EPOCHS_PER_CLIENT):
@@ -142,6 +146,13 @@ def train_client(rank, world_size, mechanism='baseline', out_bits=1):
                     if param.grad is not None:
                         param_np = param.grad.cpu().numpy()
                         quantized_gradient = ppgc_instance.map_gradient(param_np, out_bits)
+                        param.grad = torch.tensor(quantized_gradient, dtype=param.dtype).to(device)
+
+            elif mechanism == 'ONEBIT':
+                for param in model.module.parameters():
+                    if param.grad is not None:
+                        param_np = param.grad.cpu().numpy()
+                        quantized_gradient = onebit_instance.apply_1bit_sgd_quantization(param_np)
                         param.grad = torch.tensor(quantized_gradient, dtype=param.dtype).to(device)
 
             optimizer.step()
