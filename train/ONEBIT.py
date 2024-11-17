@@ -21,12 +21,18 @@ class QuantizedSGDCommunicator:
         self.quantizer = MatrixQuantizer(self.num_bits)
         self.error_feedback = None  # Store error feedback for compensation
         
+
     def initialize_error_feedback(self, model):
         if self.error_feedback is None:
             self.error_feedback = {}
-            for name, param in model.named_parameters():
-                if param.grad is not None:
-                    self.error_feedback[name] = np.zeros(param.grad.shape)
+            for name, param in model.module.named_parameters() if hasattr(model, 'module') else model.named_parameters():
+                self.error_feedback[name] = np.zeros(param.shape)
+    # def initialize_error_feedback(self, model):
+    #     if self.error_feedback is None:
+    #         self.error_feedback = {}
+    #         for name, param in model.named_parameters():
+    #             if param.grad is not None:
+    #                 self.error_feedback[name] = np.zeros(param.grad.shape)
         
     def local_quantize(self, name, param):
         # Add error feedback to local gradients
