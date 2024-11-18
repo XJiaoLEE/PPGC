@@ -95,7 +95,7 @@ class PPGC:
 
         # 计算 L2 范数并进行归一化
         # l2_norm = np.linalg.norm(flatten_gradient_vector, ord=2)
-        l2_norm = np.sqrt(np.sum(np.square(original_shape)))
+        l2_norm = np.sqrt(np.sum(np.square(gradient_vector)))
         if l2_norm == 0:  # 避免除以零
             l2_norm = 1.0
         normalized_gradient_vector = flatten_gradient_vector / l2_norm
