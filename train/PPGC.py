@@ -87,7 +87,7 @@ class PPGC:
 
     def map_gradient(self, name, param):
         gradient_vector = param.grad.cpu().numpy()
-        gradient_vector = gradient_vector + self.error_feedback[name]
+        #gradient_vector = gradient_vector + self.error_feedback[name]
 
         # 将梯度向量展平为一维
         original_shape = gradient_vector.shape
@@ -117,7 +117,7 @@ class PPGC:
 
         # 恢复为原始形状
         quantized_gradient = quantized_gradient.reshape(original_shape)
-        self.error_feedback[name] = gradient_vector - quantized_gradient
+        #self.error_feedback[name] = gradient_vector - quantized_gradient
 
         return quantized_gradient * l2_norm
 
