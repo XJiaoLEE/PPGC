@@ -119,5 +119,5 @@ class PPGC:
         quantized_gradient = quantized_gradient.reshape(original_shape)
         #self.error_feedback[name] = gradient_vector - quantized_gradient
 
-        return quantized_gradient
-        # return quantized_gradient * l2_norm
+        # return quantized_gradient
+        return quantized_gradient * l2_norm
