@@ -8,6 +8,7 @@ import numpy as np
 from datetime import datetime
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader, random_split
+from QSGD import QSGD
 from PPGC import PPGC  # 导入 PPGC 模块
 from ONEBIT import QuantizedSGDCommunicator
 import torch.distributed as dist
@@ -118,7 +119,9 @@ def train_client(rank, world_size, mechanism='baseline', out_bits=1):
     model.train()
     optimizer = optim.SGD(model.parameters(), lr=LEARNING_RATE, momentum=0.9)
     criterion = nn.CrossEntropyLoss()
-    if mechanism == 'PPGC':
+    if mechanism == 'QSGD':
+        qsgd_instance = QSGD()
+    elif mechanism == 'PPGC':
         ppgc_instance = PPGC(epsilon, out_bits, model)  # 创建 PPGC 实例
     elif mechanism == 'ONEBIT':
         onebit_instance = QuantizedSGDCommunicator()
@@ -139,7 +142,8 @@ def train_client(rank, world_size, mechanism='baseline', out_bits=1):
                 for param in model.module.parameters():
                     if param.grad is not None:
                         param_np = param.grad.cpu().numpy()
-                        quantized_gradient = quantize(param_np, 2 ** out_bits)
+                        quantized_gradient = qsgd_instance.quantize(param_np, out_bits)
+                        # quantized_gradient = quantize(param_np, 2 ** out_bits)
                         param.grad = torch.tensor(quantized_gradient, dtype=param.dtype).to(device)
 
             elif mechanism == 'PPGC':
@@ -191,18 +195,26 @@ def federated_learning(mechanism):
 
         # 聚合客户端模型参数
         dist.barrier()  # 确保所有节点都完成训练再进行聚合
-        aggregate_global_model(global_model.module, client_model.module)
+        aggregate_global_model(global_model.module, client_model.module, mechanism)
 
         # 聚合后测试模型
         aggregated_accuracy = test_model(global_model, test_loader)
         log_with_time(f"Global model accuracy after aggregation: {aggregated_accuracy:.4f}")
 
 # 聚合客户端模型参数
-def aggregate_global_model(global_model, client_model):
+def aggregate_global_model(global_model, client_model, mechanism):
     log_with_time("Aggregating global model from client models")
 
     # 遍历每个参数，通过 all_reduce 汇总每个客户端的梯度
     for param_global, param_client in zip(global_model.parameters(), client_model.parameters()):
+        if mechanism == 'QSGD' and hasattr(param_client, 'grad_norm'):
+            qsgd_instance = QSGD()
+            # 如果是 QSGD，则在 allreduce 之前进行反量化
+            quantized_data = param_client.data.cpu().numpy()
+            norm = param_client.grad_norm
+            dequantized_data = qsgd_instance.dequantize(quantized_data, norm, args.out_bits)
+            param_client.data = torch.tensor(dequantized_data, dtype=param_client.dtype).to(device)
+
         param_global.data = param_client.data.clone()
         dist.all_reduce(param_global.data, op=dist.ReduceOp.SUM)
         param_global.data /= args.world_size  # 对参数取平均，形成全局模型
