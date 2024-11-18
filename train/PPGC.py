@@ -91,13 +91,13 @@ class PPGC:
 
         # 将梯度向量展平为一维
         original_shape = gradient_vector.shape
-        gradient_vector = gradient_vector.flatten()
+        flatten_gradient_vector = gradient_vector.flatten()
 
         # 计算 L2 范数并进行归一化
-        l2_norm = np.linalg.norm(gradient_vector, ord=2)
+        l2_norm = np.linalg.norm(flatten_gradient_vector, ord=2)
         if l2_norm == 0:  # 避免除以零
             l2_norm = 1.0
-        normalized_gradient_vector = gradient_vector / l2_norm
+        normalized_gradient_vector = flatten_gradient_vector / l2_norm
 
         # 优化的量化过程
         quantized_gradient = np.zeros_like(normalized_gradient_vector, dtype=np.float32)
@@ -117,6 +117,7 @@ class PPGC:
 
         # 恢复为原始形状
         quantized_gradient = quantized_gradient.reshape(original_shape)
+        self.error_feedback[name] = gradient_vector - quantized_gradient
 
         return quantized_gradient * l2_norm
 
