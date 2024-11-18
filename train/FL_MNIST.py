@@ -22,7 +22,7 @@ print(f"Is CUDA available: {torch.cuda.is_available()}")
 print(f"CUDA version: {torch.version.cuda}")
 
 # 参数设置
-NUM_ROUNDS = 150          # 联邦学习轮数
+NUM_ROUNDS = 10          # 联邦学习轮数
 EPOCHS_PER_CLIENT = 1    # 每轮客户端本地训练次数
 BATCH_SIZE = 32          # 批大小
 LEARNING_RATE = 0.001    # 学习率
@@ -119,7 +119,7 @@ def train_client(rank, world_size, mechanism='baseline', out_bits=1):
     optimizer = optim.SGD(model.parameters(), lr=LEARNING_RATE, momentum=0.9)
     criterion = nn.CrossEntropyLoss()
     if mechanism == 'PPGC':
-        ppgc_instance = PPGC(epsilon, out_bits)  # 创建 PPGC 实例
+        ppgc_instance = PPGC(epsilon, out_bits, model)  # 创建 PPGC 实例
     elif mechanism == 'ONEBIT':
         onebit_instance = QuantizedSGDCommunicator()
         onebit_instance.initialize_error_feedback(model)
@@ -143,10 +143,9 @@ def train_client(rank, world_size, mechanism='baseline', out_bits=1):
                         param.grad = torch.tensor(quantized_gradient, dtype=param.dtype).to(device)
 
             elif mechanism == 'PPGC':
-                for param in model.module.parameters():
+                for name, param in model.module.named_parameters() if hasattr(model, 'module') else model.named_parameters():
                     if param.grad is not None:
-                        param_np = param.grad.cpu().numpy()
-                        quantized_gradient = ppgc_instance.map_gradient(param_np, out_bits)
+                        quantized_gradient = ppgc_instance.map_gradient(name, param)
                         param.grad = torch.tensor(quantized_gradient, dtype=param.dtype).to(device)
 
             elif mechanism == 'ONEBIT':
