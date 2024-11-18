@@ -53,11 +53,15 @@ from sympy import symbols, exp, Rational, lambdify
 import numpy as np
 
 class PPGC:
-    def __init__(self, epsilon, out_bits):
+    def __init__(self, epsilon, out_bits,model):
         self.epsilon = epsilon
         self.C = float((exp(epsilon) + 1) / (exp(epsilon) - 1))
         self.qutibit = out_bits
         self.outputs, self.probabilities = self.calculate_quantization(self.qutibit)
+        self.error_feedback = {}
+        for name, param in model.module.named_parameters() if hasattr(model, 'module') else model.named_parameters():
+            self.error_feedback[name] = np.zeros(param.shape)
+
 
     def calculate_quantization(self, qutibit):
         outbit = 2 ** qutibit
@@ -81,7 +85,10 @@ class PPGC:
 
         return np.array(outputs, dtype=np.float32), probabilities
 
-    def map_gradient(self, gradient_vector, out_bits):
+    def map_gradient(self, name, param):
+        gradient_vector = param.grad.cpu().numpy()
+        gradient_vector = gradient_vector + self.error_feedback[name]
+
         # 将梯度向量展平为一维
         original_shape = gradient_vector.shape
         gradient_vector = gradient_vector.flatten()
