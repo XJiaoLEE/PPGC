@@ -22,208 +22,208 @@ from tqdm import tqdm
 import os
 from datetime import datetime
 import pickle
-from utils import optimal_scaling_integer, FWHTRandomProjector
+# from utils import optimal_scaling_integer, FWHTRandomProjector
 import time
-from opacus.accountants import RDPAccountant
-from typing import Callable, List, Optional, Union, Tuple
-from opacus.accountants.analysis import rdp as privacy_analysis
+# from opacus.accountants import RDPAccountant
+# from typing import Callable, List, Optional, Union, Tuple
+# from opacus.accountants.analysis import rdp as privacy_analysis
 
 
-class CLDPMechanism:
-    '''
-    LDP mechanisms from https://arxiv.org/pdf/2008.07180.pdf.
-    '''
+# class CLDPMechanism:
+#     '''
+#     LDP mechanisms from https://arxiv.org/pdf/2008.07180.pdf.
+#     '''
     
-    def __init__(self, epsilon, d, norm_bound, norm_type):
-        self.epsilon = epsilon
-        if norm_type == "l1":
-            self.d = int(math.pow(2, math.ceil(math.log2(d))))
-        else:
-            self.d = d
-        self.norm_bound = norm_bound
-        self.norm_type = norm_type
+#     def __init__(self, epsilon, d, norm_bound, norm_type):
+#         self.epsilon = epsilon
+#         if norm_type == "l1":
+#             self.d = int(math.pow(2, math.ceil(math.log2(d))))
+#         else:
+#             self.d = d
+#         self.norm_bound = norm_bound
+#         self.norm_type = norm_type
         
-    def privatize_l1(self, x):
-        assert np.linalg.norm(x, 1) <= self.norm_bound + 1e-8
-        assert len(x) <= self.d
-        z = np.zeros(self.d)
-        z[:len(x)] = x
-        H = scipy.linalg.hadamard(self.d)
-        z = H @ z / math.sqrt(self.d)
-        C = (math.exp(self.epsilon) - 1) / (math.exp(self.epsilon) + 1)
-        idx = random.randint(0, self.d - 1)
-        U = np.sign(0.5 + C * math.sqrt(self.d) * z[idx] / (2 * self.norm_bound) - random.random())
-        return (idx, U)
+#     def privatize_l1(self, x):
+#         assert np.linalg.norm(x, 1) <= self.norm_bound + 1e-8
+#         assert len(x) <= self.d
+#         z = np.zeros(self.d)
+#         z[:len(x)] = x
+#         H = scipy.linalg.hadamard(self.d)
+#         z = H @ z / math.sqrt(self.d)
+#         C = (math.exp(self.epsilon) - 1) / (math.exp(self.epsilon) + 1)
+#         idx = random.randint(0, self.d - 1)
+#         U = np.sign(0.5 + C * math.sqrt(self.d) * z[idx] / (2 * self.norm_bound) - random.random())
+#         return (idx, U)
     
-    def decode_l1(self, z):
-        C_inv = (math.exp(self.epsilon) + 1) / (math.exp(self.epsilon) - 1)
-        H = scipy.linalg.hadamard(self.d)
-        return z[1] * self.norm_bound * C_inv * H[:, z[0]]
+#     def decode_l1(self, z):
+#         C_inv = (math.exp(self.epsilon) + 1) / (math.exp(self.epsilon) - 1)
+#         H = scipy.linalg.hadamard(self.d)
+#         return z[1] * self.norm_bound * C_inv * H[:, z[0]]
     
-    def quantize_l2(self, x):
-        norm = np.linalg.norm(x, 1)
-        sign = np.sign((1 + norm) / (2 * self.norm_bound * math.sqrt(self.d)) - random.random())
-        x = sign * x / norm
-        if len(x) > 1:
-            y = np.random.multinomial(1, np.absolute(x), (self.d,))
-        else:
-            y = np.ones((self.d, 1)).astype(int)
-        return y, np.sign(x[np.argmax(y, 1)])
+#     def quantize_l2(self, x):
+#         norm = np.linalg.norm(x, 1)
+#         sign = np.sign((1 + norm) / (2 * self.norm_bound * math.sqrt(self.d)) - random.random())
+#         x = sign * x / norm
+#         if len(x) > 1:
+#             y = np.random.multinomial(1, np.absolute(x), (self.d,))
+#         else:
+#             y = np.ones((self.d, 1)).astype(int)
+#         return y, np.sign(x[np.argmax(y, 1)])
     
-    def privatize_l2(self, x):
-        assert np.linalg.norm(x, 2) <= self.norm_bound + 1e-8
-        d = len(x)
-        norm = np.linalg.norm(x, 2)
-        sign = np.sign(0.5 + norm / (2 * self.norm_bound) - random.random())
-        x = sign * self.norm_bound * x / norm
-        U_sign = np.sign(math.exp(self.epsilon) / (math.exp(self.epsilon) + 1) - random.random())
-        C_inv = (math.exp(self.epsilon) + 1) / (math.exp(self.epsilon) - 1)
-        M = self.norm_bound * d * math.sqrt(math.pi) * C_inv * gamma((d-1)/2 + 1) / (2 * gamma(d/2 + 1))
-        while True:
-            z = np.random.normal(0, 1, (d,))
-            z = M * z / np.linalg.norm(z)
-            if sum(z * x) * U_sign > 0:
-                break
-        return self.quantize_l2(z)
+#     def privatize_l2(self, x):
+#         assert np.linalg.norm(x, 2) <= self.norm_bound + 1e-8
+#         d = len(x)
+#         norm = np.linalg.norm(x, 2)
+#         sign = np.sign(0.5 + norm / (2 * self.norm_bound) - random.random())
+#         x = sign * self.norm_bound * x / norm
+#         U_sign = np.sign(math.exp(self.epsilon) / (math.exp(self.epsilon) + 1) - random.random())
+#         C_inv = (math.exp(self.epsilon) + 1) / (math.exp(self.epsilon) - 1)
+#         M = self.norm_bound * d * math.sqrt(math.pi) * C_inv * gamma((d-1)/2 + 1) / (2 * gamma(d/2 + 1))
+#         while True:
+#             z = np.random.normal(0, 1, (d,))
+#             z = M * z / np.linalg.norm(z)
+#             if sum(z * x) * U_sign > 0:
+#                 break
+#         return self.quantize_l2(z)
     
-    def decode_l2(self, z):
-        return self.norm_bound * (z[0] * z[1][:, None]).sum(0)
+#     def decode_l2(self, z):
+#         return self.norm_bound * (z[0] * z[1][:, None]).sum(0)
     
-    def privatize_linf(self, x):
-        assert np.absolute(x).max() <= self.norm_bound + 1e-8
-        C = (math.exp(self.epsilon) - 1) / (math.exp(self.epsilon) + 1)
-        idx = random.randint(0, len(x) - 1)
-        U = np.sign(0.5 + C * x[idx] / (2 * self.norm_bound) - random.random())
-        return (idx, U)
+#     def privatize_linf(self, x):
+#         assert np.absolute(x).max() <= self.norm_bound + 1e-8
+#         C = (math.exp(self.epsilon) - 1) / (math.exp(self.epsilon) + 1)
+#         idx = random.randint(0, len(x) - 1)
+#         U = np.sign(0.5 + C * x[idx] / (2 * self.norm_bound) - random.random())
+#         return (idx, U)
     
-    def decode_linf(self, z):
-        C_inv = (math.exp(self.epsilon) + 1) / (math.exp(self.epsilon) - 1)
-        e = np.zeros(self.d)
-        e[z[0]] = 1
-        return z[1] * self.norm_bound * self.d * C_inv * e
+#     def decode_linf(self, z):
+#         C_inv = (math.exp(self.epsilon) + 1) / (math.exp(self.epsilon) - 1)
+#         e = np.zeros(self.d)
+#         e[z[0]] = 1
+#         return z[1] * self.norm_bound * self.d * C_inv * e
     
-    def privatize(self, x):
-        if self.norm_type == "l1":
-            return self.privatize_l1(x)
-        elif self.norm_type == "l2":
-            return self.privatize_l2(x)
-        elif self.norm_type == "linf":
-            return self.privatize_linf(x)
-        else:
-            raise RuntimeError("Unsupported norm type: " + str(self.norm_type))
+#     def privatize(self, x):
+#         if self.norm_type == "l1":
+#             return self.privatize_l1(x)
+#         elif self.norm_type == "l2":
+#             return self.privatize_l2(x)
+#         elif self.norm_type == "linf":
+#             return self.privatize_linf(x)
+#         else:
+#             raise RuntimeError("Unsupported norm type: " + str(self.norm_type))
     
-    def decode(self, x):
-        if self.norm_type == "l1":
-            return self.decode_l1(x)
-        elif self.norm_type == "l2":
-            return self.decode_l2(x)
-        elif self.norm_type == "linf":
-            return self.decode_linf(x)
-        else:
-            raise RuntimeError("Unsupported norm type: " + str(self.norm_type))
+#     def decode(self, x):
+#         if self.norm_type == "l1":
+#             return self.decode_l1(x)
+#         elif self.norm_type == "l2":
+#             return self.decode_l2(x)
+#         elif self.norm_type == "linf":
+#             return self.decode_linf(x)
+#         else:
+#             raise RuntimeError("Unsupported norm type: " + str(self.norm_type))
             
             
-class SkellamMechanism:
-    '''
-    Skellam mechanism from https://arxiv.org/pdf/2110.04995.pdf.
-    '''
+# class SkellamMechanism:
+#     '''
+#     Skellam mechanism from https://arxiv.org/pdf/2110.04995.pdf.
+#     '''
     
-    def __init__(self, budget, d, norm_bound, mu, num_clients=1):
-        self.budget = budget
-        self.d = d
-        self.expanded_d = int(math.pow(2, math.ceil(math.log2(d))))
-        self.norm_bound = norm_bound
-        self.mu = mu
-        self.s = self.compute_s(num_clients)
-        print("s = %.2f" % self.s)
-        self.scale = optimal_scaling_integer(self.expanded_d, self.s * norm_bound, math.exp(-0.5), tol=1e-3)
-        if self.scale == 0:
-            raise RuntimeError("Did not find suitable scale factor; try increasing communication budget")
-        self.clip_min = -int(math.pow(2, budget - 1))
-        self.clip_max = int(math.pow(2, budget - 1)) - 1
-        self.projector = FWHTRandomProjector(self.d, self.expanded_d)
-        return
+#     def __init__(self, budget, d, norm_bound, mu, num_clients=1):
+#         self.budget = budget
+#         self.d = d
+#         self.expanded_d = int(math.pow(2, math.ceil(math.log2(d))))
+#         self.norm_bound = norm_bound
+#         self.mu = mu
+#         self.s = self.compute_s(num_clients)
+#         print("s = %.2f" % self.s)
+#         self.scale = optimal_scaling_integer(self.expanded_d, self.s * norm_bound, math.exp(-0.5), tol=1e-3)
+#         if self.scale == 0:
+#             raise RuntimeError("Did not find suitable scale factor; try increasing communication budget")
+#         self.clip_min = -int(math.pow(2, budget - 1))
+#         self.clip_max = int(math.pow(2, budget - 1)) - 1
+#         self.projector = FWHTRandomProjector(self.d, self.expanded_d)
+#         return
     
-    def compute_s(self, num_clients, k=3, rho=1, DIV_EPSILON=1e-22):
-        """
-        Adapted from https://github.com/google-research/federated/blob/master/distributed_dp/accounting_utils.py
-        """
-        def mod_min(gamma):
-            var = rho / self.d * (num_clients * self.norm_bound)**2
-            var += (gamma**2 / 4 + self.mu) * num_clients
-            return k * math.sqrt(var)
+#     def compute_s(self, num_clients, k=3, rho=1, DIV_EPSILON=1e-22):
+#         """
+#         Adapted from https://github.com/google-research/federated/blob/master/distributed_dp/accounting_utils.py
+#         """
+#         def mod_min(gamma):
+#             var = rho / self.d * (num_clients * self.norm_bound)**2
+#             var += (gamma**2 / 4 + self.mu) * num_clients
+#             return k * math.sqrt(var)
 
-        def gamma_opt_fn(gamma):
-            return (math.pow(2, self.budget) - 2 * mod_min(gamma) / (gamma + DIV_EPSILON))**2
+#         def gamma_opt_fn(gamma):
+#             return (math.pow(2, self.budget) - 2 * mod_min(gamma) / (gamma + DIV_EPSILON))**2
 
-        gamma_result = optimize.minimize_scalar(gamma_opt_fn)
-        if not gamma_result.success:
-            raise ValueError('Cannot compute scaling factor.')
-        return 1. / gamma_result.x
+#         gamma_result = optimize.minimize_scalar(gamma_opt_fn)
+#         if not gamma_result.success:
+#             raise ValueError('Cannot compute scaling factor.')
+#         return 1. / gamma_result.x
     
-    def renyi_div(self, alphas, l1_norm_bound=None, l2_norm_bound=None):
-        """
-        Computes Renyi divergence of the Skellam mechanism.
-        """
-        if l2_norm_bound is None:
-            l2_norm_bound = self.norm_bound
-        if l1_norm_bound is None:
-            l1_norm_bound = self.norm_bound * min(math.sqrt(self.expanded_d), self.norm_bound)
-        epsilons = np.zeros(alphas.shape)
-        B1 = 3 * l1_norm_bound / (2 * self.s ** 3 * self.mu ** 2)
-        B2 = 3 * l1_norm_bound / (2 * self.s * self.mu)
-        for i in range(len(alphas)):
-            alpha = alphas[i]
-            epsilon = alpha * self.norm_bound ** 2 / (2 * self.mu)
-            B3 = (2 * alpha - 1) * self.norm_bound ** 2 / (4 * self.s ** 2 * self.mu ** 2)
-            epsilons[i] = epsilon + min(B1 + B3, B2)
-        return epsilons
+#     def renyi_div(self, alphas, l1_norm_bound=None, l2_norm_bound=None):
+#         """
+#         Computes Renyi divergence of the Skellam mechanism.
+#         """
+#         if l2_norm_bound is None:
+#             l2_norm_bound = self.norm_bound
+#         if l1_norm_bound is None:
+#             l1_norm_bound = self.norm_bound * min(math.sqrt(self.expanded_d), self.norm_bound)
+#         epsilons = np.zeros(alphas.shape)
+#         B1 = 3 * l1_norm_bound / (2 * self.s ** 3 * self.mu ** 2)
+#         B2 = 3 * l1_norm_bound / (2 * self.s * self.mu)
+#         for i in range(len(alphas)):
+#             alpha = alphas[i]
+#             epsilon = alpha * self.norm_bound ** 2 / (2 * self.mu)
+#             B3 = (2 * alpha - 1) * self.norm_bound ** 2 / (4 * self.s ** 2 * self.mu ** 2)
+#             epsilons[i] = epsilon + min(B1 + B3, B2)
+#         return epsilons
     
-    def dither(self, x):
-        k = np.floor(x)
-        prob = 1 - (x - k)
-        while True:
-            output = k + (np.random.random(k.shape) > prob)
-            if np.linalg.norm(output, 2) <= self.s * self.norm_bound:
-                break
-        return output.astype(int)
+#     def dither(self, x):
+#         k = np.floor(x)
+#         prob = 1 - (x - k)
+#         while True:
+#             output = k + (np.random.random(k.shape) > prob)
+#             if np.linalg.norm(output, 2) <= self.s * self.norm_bound:
+#                 break
+#         return output.astype(int)
     
-    def privatize(self, x):
-        assert np.all(np.linalg.norm(x, 2, 1) <= self.norm_bound + 1e-4)
-        assert x.shape[1] == self.d
-        z = np.zeros((x.shape[0], self.expanded_d))
-        for i in range(x.shape[0]):
-            z[i] = self.dither(self.projector.project(self.s * x[i]))
-        z += skellam.rvs(self.s**2 * self.mu, self.s**2 * self.mu, size=z.shape)
-        z = np.mod(z - self.clip_min, self.clip_max - self.clip_min) + self.clip_min
-        return z
+#     def privatize(self, x):
+#         assert np.all(np.linalg.norm(x, 2, 1) <= self.norm_bound + 1e-4)
+#         assert x.shape[1] == self.d
+#         z = np.zeros((x.shape[0], self.expanded_d))
+#         for i in range(x.shape[0]):
+#             z[i] = self.dither(self.projector.project(self.s * x[i]))
+#         z += skellam.rvs(self.s**2 * self.mu, self.s**2 * self.mu, size=z.shape)
+#         z = np.mod(z - self.clip_min, self.clip_max - self.clip_min) + self.clip_min
+#         return z
     
-    def decode(self, z):
-        x = np.zeros((z.shape[0], self.d))
-        for i in range(z.shape[0]):
-            x[i] = self.projector.inverse(z[i].astype(float)) / self.s
-        return x
+#     def decode(self, z):
+#         x = np.zeros((z.shape[0], self.d))
+#         for i in range(z.shape[0]):
+#             x[i] = self.projector.inverse(z[i].astype(float)) / self.s
+#         return x
 
 
-class SkellamAccountant(RDPAccountant):
+# class SkellamAccountant(RDPAccountant):
     
-    def __init__(self, orders, renyi_div_bounds):
-        super().__init__()
-        self.alphas = orders
-        self.renyi_div_bounds = renyi_div_bounds
+#     def __init__(self, orders, renyi_div_bounds):
+#         super().__init__()
+#         self.alphas = orders
+#         self.renyi_div_bounds = renyi_div_bounds
         
-    def get_privacy_spent(
-        self, *, delta: float, alphas: Optional[List[Union[float, int]]] = None
-    ) -> Tuple[float, float]:
-        if not self.history:
-            return 0, 0
+#     def get_privacy_spent(
+#         self, *, delta: float, alphas: Optional[List[Union[float, int]]] = None
+#     ) -> Tuple[float, float]:
+#         if not self.history:
+#             return 0, 0
 
-        # MVU accountant does not yet support subsampling and different noise multipliers
-        rdp = sum([self.renyi_div_bounds * num_steps for (_, _, num_steps) in self.history])
-        eps, best_alpha = privacy_analysis.get_privacy_spent(
-            orders=self.alphas, rdp=rdp, delta=delta
-        )
-        return float(eps), float(best_alpha)
+#         # MVU accountant does not yet support subsampling and different noise multipliers
+#         rdp = sum([self.renyi_div_bounds * num_steps for (_, _, num_steps) in self.history])
+#         eps, best_alpha = privacy_analysis.get_privacy_spent(
+#             orders=self.alphas, rdp=rdp, delta=delta
+#         )
+#         return float(eps), float(best_alpha)
 
 
 class CompressedMechanism:
