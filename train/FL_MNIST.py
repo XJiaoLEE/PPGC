@@ -23,11 +23,11 @@ print(f"Is CUDA available: {torch.cuda.is_available()}")
 print(f"CUDA version: {torch.version.cuda}")
 
 # 参数设置
-NUM_ROUNDS = 10          # 联邦学习轮数
+NUM_ROUNDS = 150          # 联邦学习轮数
 EPOCHS_PER_CLIENT = 1    # 每轮客户端本地训练次数
 BATCH_SIZE = 32          # 批大小
 LEARNING_RATE = 0.001    # 学习率
-epsilon = 1.0            # PPGC 使用的 epsilon 值
+epsilon = 5.0            # PPGC 使用的 epsilon 值
 
 # 检测是否有可用的 GPU，如果没有则使用 CPU
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

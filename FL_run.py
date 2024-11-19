@@ -23,7 +23,7 @@ current_host_rank = 1  # 当前主机的 rank
 world_size = len(nodes)
 
 # 动态命令模板，用户可以在运行时修改它
-command_template = "cd {remote_directory} && git pull origin main && make run_MNIST_QSGD_master world_size={world_size} rank={rank}"
+command_template = "cd {remote_directory} && git pull origin main && make run_MNIST_{mechanism}_master world_size={world_size} rank={rank}"
 
 # 检查并杀死占用指定端口的进程
 def kill_process_on_port(port):
@@ -84,7 +84,7 @@ def ssh_execute_command(hostname, username, password, command):
         client.close()
         
 # 并行执行远程和本地命令
-def run_commands_in_parallel():
+def run_commands_in_parallel(mechanism):
     # 检查并杀死占用 20008 端口的进程
     kill_process_on_port(20008)
     
@@ -97,7 +97,7 @@ def run_commands_in_parallel():
         username = rank0_credentials['user']
         password = rank0_credentials['password']
         remote_directory = rank0_credentials['remote_directory']
-        command = command_template.format(remote_directory=remote_directory, world_size=world_size, rank=rank)
+        command = command_template.format(remote_directory=remote_directory, world_size=world_size, rank=rank, mechanism=mechanism)
         futures.append(executor.submit(ssh_execute_command, rank0_hostname, username, password, command))
 
         # 确保 rank=0 的节点先启动一小段时间
@@ -113,7 +113,7 @@ def run_commands_in_parallel():
             remote_directory = credentials['remote_directory']
             
             # 根据模板生成远程主机要执行的命令
-            command = command_template.format(remote_directory=remote_directory, world_size=world_size, rank=rank)
+            command = command_template.format(remote_directory=remote_directory, world_size=world_size, rank=rank, mechanism=mechanism)
             
             # 提交远程任务
             futures.append(executor.submit(ssh_execute_command, hostname, username, password, command))
@@ -127,7 +127,16 @@ def run_commands_in_parallel():
             except Exception as e:
                 print(f"任务执行失败: {e}")
 
-# 并行执行本地和远程命令
-run_commands_in_parallel()
+if __name__ == "__main__":
+    # 提示用户输入机制类型
+    mechanism = input("请输入要运行的机制类型（baseline, QSGD, PPGC, ONEBIT）: ").upper()
 
-print("分布式计算命令在所有主机上执行完成。")
+    # 检查输入的机制是否有效
+    valid_mechanisms = ["BASELINE", "QSGD", "PPGC", "ONEBIT"]
+    if mechanism not in valid_mechanisms:
+        print("无效的机制类型。请输入以下之一: baseline, QSGD, PPGC, ONEBIT")
+    else:
+        # 并行执行本地和远程命令
+        run_commands_in_parallel(mechanism)
+
+    print("分布式计算命令在所有主机上执行完成。")
