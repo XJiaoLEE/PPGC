@@ -314,10 +314,12 @@ class MultinomialSamplingMechanism(CompressedMechanism):
         p          - Which p-norm to use for the norm bound parameter.
         """
         super().__init__(budget, epsilon)
+        print("MultinomialSamplingMechanism, init......")
         self.input_bits = input_bits
         self.norm_bound = norm_bound
         self.p = p
         result = self.optimize(**kwargs)
+        print("result,--------",result)
         if result is not None:
             self.P, self.alpha = result[0], result[1]
         
