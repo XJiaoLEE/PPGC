@@ -65,15 +65,15 @@ def log_with_time(message):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     print(f"[{timestamp}] {message}")
 
-# QSGD量化函数
-def quantize(x, d):
-    """Quantize the tensor x to d levels based on absolute value coefficient-wise."""
-    norm = np.sqrt(np.sum(np.square(x)))
-    level_float = d * np.abs(x) / norm
-    previous_level = np.floor(level_float)
-    is_next_level = np.random.rand(*x.shape) < (level_float - previous_level)
-    new_level = previous_level + is_next_level
-    return np.sign(x) * norm * new_level / d
+# # QSGD量化函数
+# def quantize(x, d):
+#     """Quantize the tensor x to d levels based on absolute value coefficient-wise."""
+#     norm = np.sqrt(np.sum(np.square(x)))
+#     level_float = d * np.abs(x) / norm
+#     previous_level = np.floor(level_float)
+#     is_next_level = np.random.rand(*x.shape) < (level_float - previous_level)
+#     new_level = previous_level + is_next_level
+#     return np.sign(x) * norm * new_level / d
 
 # MNIST 数据加载
 def load_data():
