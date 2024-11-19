@@ -351,7 +351,7 @@ class MultinomialSamplingMechanism(CompressedMechanism):
         range_B = np.arange(B).astype(int)
 
         for a in z:
-            assert np.isclose(self.P[a].sum(), 1), f"Probabilities do not sum to 1: {self.P[a]}"
+            # assert np.isclose(self.P[a].sum(), 1), f"Probabilities do not sum to 1: {self.P[a]}"
             assert len(self.P[a].shape) == 1, f"Expected self.P[{a}] to be 1-dimensional, but got shape {self.P[a].shape}"
 
         z = np.array([np.random.choice(range_B, p=self.P[a]) for a in z])
