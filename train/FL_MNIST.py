@@ -8,6 +8,7 @@ import numpy as np
 from datetime import datetime
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader, random_split
+from mechanisms import RAPPORMechanism
 from QSGD import QSGD
 from PPGC import PPGC  # 导入 PPGC 模块
 from ONEBIT import QuantizedSGDCommunicator
@@ -41,8 +42,8 @@ transform = transforms.Compose([
 
 # 处理命令行参数
 parser = argparse.ArgumentParser(description='Federated Learning with mechanism selection')
-parser.add_argument('--mechanism', type=str, default='baseline', choices=['baseline', 'PPGC', 'QSGD','ONEBIT'],
-                    help='Choose the aggregation mechanism: "baseline", "PPGC", "QSGD" or "ONEBIT"')
+parser.add_argument('--mechanism', type=str, default='baseline', choices=['baseline', 'PPGC', 'QSGD', 'ONEBIT', 'RAPPOR'],
+                    help='Choose the aggregation mechanism: "baseline", "PPGC", "QSGD", "ONEBIT" or "RAPPOR"')
 parser.add_argument('--out_bits', type=int, default=2, help='Number of bits for QSGD or PPGC quantization')
 parser.add_argument('--world_size', type=int, default=2, help='Number of processes participating in the job')
 parser.add_argument('--rank', type=int, required=True, help='Rank of the current process')
@@ -126,6 +127,8 @@ def train_client(rank, world_size, mechanism='baseline', out_bits=1):
     elif mechanism == 'ONEBIT':
         onebit_instance = QuantizedSGDCommunicator()
         onebit_instance.initialize_error_feedback(model)
+    elif mechanism == 'RAPPOR':
+        rappor_instance = RAPPORMechanism(budget, epsilon, out_bits)  # 创建 RAPPOR 实例
 
     client_loader = DataLoader(client_datasets[rank], batch_size=BATCH_SIZE, shuffle=True)
     for epoch in range(EPOCHS_PER_CLIENT):
@@ -158,6 +161,21 @@ def train_client(rank, world_size, mechanism='baseline', out_bits=1):
                     if param.grad is not None:
                         quantized_gradient = onebit_instance.apply_1bit_sgd_quantization(name, param)
                         param.grad = torch.tensor(quantized_gradient, dtype=param.dtype).to(device)
+
+            elif mechanism == 'RAPPOR':
+                for param in model.module.parameters():
+                    if param.grad is not None:
+                        # 将检测过的模型参数进行根据化到 [0, 1] 范围
+                        min_grad = param.grad.min().item()
+                        max_grad = param.grad.max().item()
+                        normalized_grad = (param.grad - min_grad) / (max_grad - min_grad)
+
+                        # 使用 RAPPOR 机制进行批量化
+                        perturbed_grad = rappor_instance.privatize(normalized_grad.cpu().numpy())
+
+                        # 返回到原始范围
+                        perturbed_grad_rescaled = torch.tensor(perturbed_grad, dtype=param.grad.dtype).to(device)
+                        param.grad = perturbed_grad_rescaled * (max_grad - min_grad) + min_grad
 
             optimizer.step()
 
