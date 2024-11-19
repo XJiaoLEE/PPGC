@@ -349,6 +349,7 @@ class MultinomialSamplingMechanism(CompressedMechanism):
         z = self.dither(x, self.input_bits)
         B = 2**self.budget
         range_B = np.arange(B).astype(int)
+        print("self.P.shape",self.P.shape)
 
         for a in z:
             # assert np.isclose(self.P[a].sum(), 1), f"Probabilities do not sum to 1: {self.P[a]}"
@@ -385,6 +386,7 @@ class RAPPORMechanism(MultinomialSamplingMechanism):
         B = 2**self.budget
         prob = B / (B + math.exp(self.epsilon) - 1)
         P = prob / B * np.ones((B, B)) + (1 - prob) * np.eye(B)
+        print(P.shape)
         assert P.shape == (B, B), f"Unexpected shape for self.P: {P.shape}"
 
         target = np.arange(0, 1+1/B, 1/(B-1))
