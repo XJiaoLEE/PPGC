@@ -320,6 +320,8 @@ class MultinomialSamplingMechanism(CompressedMechanism):
         result = self.optimize(**kwargs)
         if result is not None:
             self.P, self.alpha = result[0], result[1]
+        
+        print("self.P.shape",self.P.shape)
         return
     
     def dither(self, x, b):
@@ -349,7 +351,6 @@ class MultinomialSamplingMechanism(CompressedMechanism):
         z = self.dither(x, self.input_bits)
         B = 2**self.budget
         range_B = np.arange(B).astype(int)
-        print("self.P.shape",self.P.shape)
 
         for a in z:
             # assert np.isclose(self.P[a].sum(), 1), f"Probabilities do not sum to 1: {self.P[a]}"
