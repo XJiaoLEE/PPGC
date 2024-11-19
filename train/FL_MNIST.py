@@ -149,7 +149,7 @@ def train_client(rank, world_size, mechanism='baseline', out_bits=1):
             elif mechanism == 'PPGC':
                 for name, param in model.module.named_parameters() if hasattr(model, 'module') else model.named_parameters():
                     if param.grad is not None:
-                        quantized_gradient = ppgc_instance.map_gradient(name, param)
+                        quantized_gradient, norm = ppgc_instance.map_gradient(name, param)
                         param.grad = torch.tensor(quantized_gradient, dtype=param.dtype).to(device)
 
             elif mechanism == 'ONEBIT':
