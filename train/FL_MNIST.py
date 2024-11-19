@@ -128,7 +128,7 @@ def train_client(rank, world_size, mechanism='baseline', out_bits=1):
         onebit_instance = QuantizedSGDCommunicator()
         onebit_instance.initialize_error_feedback(model)
     elif mechanism == 'RAPPOR':
-        rappor_instance = RAPPORMechanism(out_bits, epsilon)  # 创建 RAPPOR 实例
+        rappor_instance = RAPPORMechanism(out_bits, epsilon, out_bits)  # 创建 RAPPOR 实例
 
     client_loader = DataLoader(client_datasets[rank], batch_size=BATCH_SIZE, shuffle=True)
     for epoch in range(EPOCHS_PER_CLIENT):
