@@ -345,6 +345,10 @@ class MultinomialSamplingMechanism(CompressedMechanism):
         return
     
     def privatize(self, x):
+        for a in z:
+            assert np.isclose(self.P[a].sum(), 1), f"Probabilities do not sum to 1: {self.P[a]}"
+            assert len(self.P[a].shape) == 1, f"Expected self.P[{a}] to be 1-dimensional, but got shape {self.P[a].shape}"
+
         z = self.dither(x, self.input_bits)
         B = 2**self.budget
         range_B = np.arange(B).astype(int)
@@ -379,7 +383,7 @@ class RAPPORMechanism(MultinomialSamplingMechanism):
         B = 2**self.budget
         prob = B / (B + math.exp(self.epsilon) - 1)
         P = prob / B * np.ones((B, B)) + (1 - prob) * np.eye(B)
-        assert self.P.shape == (B, B), f"Unexpected shape for self.P: {self.P.shape}"
+        assert P.shape == (B, B), f"Unexpected shape for self.P: {P.shape}"
 
         target = np.arange(0, 1+1/B, 1/(B-1))
         alpha = np.linalg.solve(P, target)
