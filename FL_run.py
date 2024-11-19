@@ -114,7 +114,8 @@ def run_commands_in_parallel(mechanism):
             
             # 根据模板生成远程主机要执行的命令
             command = command_template.format(remote_directory=remote_directory, world_size=world_size, rank=rank, mechanism=mechanism)
-            
+            print("command:--",command)
+
             # 提交远程任务
             futures.append(executor.submit(ssh_execute_command, hostname, username, password, command))
             
