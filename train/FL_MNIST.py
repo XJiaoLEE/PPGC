@@ -207,13 +207,13 @@ def aggregate_global_model(global_model, client_model, mechanism):
 
     # 遍历每个参数，通过 all_reduce 汇总每个客户端的梯度
     for param_global, param_client in zip(global_model.parameters(), client_model.parameters()):
-        if mechanism == 'QSGD' and hasattr(param_client, 'grad_norm'):
-            qsgd_instance = QSGD()
-            # 如果是 QSGD，则在 allreduce 之前进行反量化
-            quantized_data = param_client.data.cpu().numpy()
-            norm = param_client.grad_norm
-            dequantized_data = qsgd_instance.dequantize(quantized_data, norm, args.out_bits)
-            param_client.data = torch.tensor(dequantized_data, dtype=param_client.dtype).to(device)
+        # if mechanism == 'QSGD' and hasattr(param_client, 'grad_norm'):
+        #     qsgd_instance = QSGD()
+        #     # 如果是 QSGD，则在 allreduce 之前进行反量化
+        #     quantized_data = param_client.data.cpu().numpy()
+        #     norm = param_client.grad_norm
+        #     dequantized_data = qsgd_instance.dequantize(quantized_data, norm, args.out_bits)
+        #     param_client.data = torch.tensor(dequantized_data, dtype=param_client.dtype).to(device)
 
         param_global.data = param_client.data.clone()
         dist.all_reduce(param_global.data, op=dist.ReduceOp.SUM)
