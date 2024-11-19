@@ -158,7 +158,7 @@ class MultinomialSamplingMechanism(CompressedMechanism):
         #     # assert np.isclose(self.P[a].sum(), 1), f"Probabilities do not sum to 1: {self.P[a]}"
         #     assert len(self.P[a].shape) == 1, f"Expected self.P[{a}] to be 1-dimensional, but got shape {self.P[a].shape}"
 
-        z = np.array([np.random.choice(range_B, p=self.P[a]) for a in z])
+        z = np.array([np.random.choice(range_B, p=self.P[int(a)]) for a in z])
         return z
     
     def decode(self, z):
