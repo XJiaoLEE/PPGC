@@ -148,16 +148,19 @@ class MultinomialSamplingMechanism(CompressedMechanism):
         return
     
     def privatize(self, x):
+        # 将梯度向量展平为一维
+        original_shape = x.shape
+        flatten_gradient_vector = x.flatten()
 
-        z = self.dither(x, self.input_bits)
-        print("z.type,,,,,,,,,,",z.shape)
+        z = self.dither(flatten_gradient_vector, self.input_bits)
+        # print("z.type,,,,,,,,,,",z.shape)
         B = 2**self.budget
         range_B = np.arange(B).astype(int)
-        print("dithered x------------",z)
+        # print("dithered x------------",z)
         for a in z:
             z = np.array([np.random.choice(range_B, p=self.P[int(a)]) ])
-
-        return x
+        z = z.reshape(original_shape)
+        return z
 
 
         # for a in z:
