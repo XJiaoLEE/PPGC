@@ -379,6 +379,8 @@ class RAPPORMechanism(MultinomialSamplingMechanism):
         B = 2**self.budget
         prob = B / (B + math.exp(self.epsilon) - 1)
         P = prob / B * np.ones((B, B)) + (1 - prob) * np.eye(B)
+        assert self.P.shape == (B, B), f"Unexpected shape for self.P: {self.P.shape}"
+
         target = np.arange(0, 1+1/B, 1/(B-1))
         alpha = np.linalg.solve(P, target)
         return P, alpha

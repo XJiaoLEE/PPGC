@@ -165,10 +165,11 @@ def train_client(rank, world_size, mechanism='baseline', out_bits=1):
             elif mechanism == 'RAPPOR':
                 for param in model.module.parameters():
                     if param.grad is not None:
+                        param_np = param.grad.cpu().numpy()
                         # 将检测过的模型参数进行根据化到 [0, 1] 范围
-                        min_grad = param.grad.min().item()
-                        max_grad = param.grad.max().item()
-                        normalized_grad = (param.grad - min_grad) / (max_grad - min_grad)
+                        min_grad = param_np.min().item()
+                        max_grad = param_np.max().item()
+                        normalized_grad = (param_np - min_grad) / (max_grad - min_grad)
 
                         # 使用 RAPPOR 机制进行批量化
                         perturbed_grad = rappor_instance.privatize(normalized_grad.cpu().numpy())
