@@ -128,7 +128,7 @@ def train_client(rank, world_size, mechanism='baseline', out_bits=1):
         onebit_instance = QuantizedSGDCommunicator()
         onebit_instance.initialize_error_feedback(model)
     elif mechanism == 'RAPPOR':
-        rappor_instance = RAPPORMechanism(out_bits, epsilon, out_bits)  # 创建 RAPPOR 实例
+        rappor_instance = RAPPORMechanism(out_bits, epsilon)  # 创建 RAPPOR 实例
 
     client_loader = DataLoader(client_datasets[rank], batch_size=BATCH_SIZE, shuffle=True)
     for epoch in range(EPOCHS_PER_CLIENT):
@@ -165,18 +165,18 @@ def train_client(rank, world_size, mechanism='baseline', out_bits=1):
             elif mechanism == 'RAPPOR':
                 for param in model.module.parameters():
                     if param.grad is not None:
-                        param_np = param.grad.cpu().numpy()
                         # 将检测过的模型参数进行根据化到 [0, 1] 范围
-                        min_grad = param_np.min().item()
-                        max_grad = param_np.max().item()
-                        normalized_grad = (param_np - min_grad) / (max_grad - min_grad)
+                        min_grad = param.grad.min().item()
+                        max_grad = param.grad.max().item()
+                        normalized_grad = (param.grad - min_grad) / (max_grad - min_grad)
 
                         # 使用 RAPPOR 机制进行批量化
                         perturbed_grad = rappor_instance.privatize(normalized_grad.cpu().numpy())
+                        param.grad = torch.tensor(perturbed_grad, dtype=param.grad.dtype).to(device)
 
                         # 返回到原始范围
-                        perturbed_grad_rescaled = torch.tensor(perturbed_grad, dtype=param.grad.dtype).to(device)
-                        param.grad = perturbed_grad_rescaled * (max_grad - min_grad) + min_grad
+                        # perturbed_grad_rescaled = torch.tensor(perturbed_grad, dtype=param.grad.dtype).to(device)
+                        # param.grad = perturbed_grad_rescaled * (max_grad - min_grad) + min_grad
 
             optimizer.step()
 
