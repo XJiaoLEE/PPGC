@@ -152,15 +152,19 @@ class MultinomialSamplingMechanism(CompressedMechanism):
         original_shape = x.shape
         flatten_gradient_vector = x.flatten()
 
+        # 调用 dither 函数对展平的梯度进行扰动
         z = self.dither(flatten_gradient_vector, self.input_bits)
-        # print("z.type,,,,,,,,,,",z.shape)
+
         B = 2**self.budget
         range_B = np.arange(B).astype(int)
-        # print("dithered x------------",z)
-        for a in z:
-            z = np.array([np.random.choice(range_B, p=self.P[int(a)]) ])
-        z = z.reshape(original_shape)
-        return z
+
+        # 使用矢量化方式对扰动后的结果进行采样
+        z_reshaped = np.array([np.random.choice(range_B, p=self.P[int(a)]) for a in z])
+
+        # 恢复为原始形状
+        z_reshaped = z_reshaped.reshape(original_shape)
+        return z_reshaped
+
 
 
         # for a in z:
