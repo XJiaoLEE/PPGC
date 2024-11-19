@@ -153,13 +153,19 @@ class MultinomialSamplingMechanism(CompressedMechanism):
         print("z.type,,,,,,,,,,",z.shape)
         B = 2**self.budget
         range_B = np.arange(B).astype(int)
+        print("dithered x------------",z)
+        for a in z:
+            z = np.array([np.random.choice(range_B, p=self.P[int(a)]) ])
+
+        return x
+
 
         # for a in z:
         #     # assert np.isclose(self.P[a].sum(), 1), f"Probabilities do not sum to 1: {self.P[a]}"
         #     assert len(self.P[a].shape) == 1, f"Expected self.P[{a}] to be 1-dimensional, but got shape {self.P[a].shape}"
 
-        z = np.array([np.random.choice(range_B, p=self.P[int(a)]) for a in z])
-        return z
+        # z = np.array([np.random.choice(range_B, p=self.P[int(a)]) for a in z])
+        # return z
     
     def decode(self, z):
         assert z.min() >= 0 and z.max() < 2**self.budget
