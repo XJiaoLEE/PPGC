@@ -257,7 +257,7 @@ def aggregate_global_model(global_model, client_model, mechanism):
 
         param_global.data = param_client.data.clone()
         dist.all_reduce(param_global.data, op=dist.ReduceOp.SUM)
-        param_global.data /= args.world_size * NUM_CLIENTS_PER_NODE  # 对参数取平均，形成全局模型
+        param_global.data /= args.world_size  # 对参数取平均，形成全局模型
 
 # 运行联邦学习
 if __name__ == "__main__":
