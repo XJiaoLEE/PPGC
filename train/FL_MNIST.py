@@ -114,9 +114,10 @@ def create_model():
     return model
 
 # 每个客户端上训练模型，并在上传前进行量化
-def train_client(rank, world_size, mechanism='baseline', out_bits=1):
+def train_client(global_model, rank, world_size, mechanism='baseline', out_bits=1):
     client_datasets, test_loader = load_data()
     model = create_model()
+    model.load_state_dict(global_model.state_dict())  # 使用全局模型的参数作为初始参数
     model.train()
     optimizer = optim.SGD(model.parameters(), lr=LEARNING_RATE, momentum=0.9)
     criterion = nn.CrossEntropyLoss()
@@ -206,7 +207,7 @@ def federated_learning(mechanism):
     for round in range(NUM_ROUNDS):
         log_with_time(f"Round {round + 1}/{NUM_ROUNDS} started")
 
-        client_model = train_client(args.rank, args.world_size, mechanism=mechanism, out_bits=args.out_bits)
+        client_model = train_client(global_model, args.rank, args.world_size, mechanism=mechanism, out_bits=args.out_bits)
 
         # 聚合前测试本地模型
         local_accuracy = test_model(client_model, test_loader)

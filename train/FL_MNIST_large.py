@@ -28,7 +28,7 @@ NUM_ROUNDS = 150          # 联邦学习轮数
 EPOCHS_PER_CLIENT = 1    # 每轮客户端本地训练次数
 BATCH_SIZE = 8          # 批大小
 LEARNING_RATE = 0.001    # 学习率
-epsilon = 5.0            # PPGC 使用的 epsilon 值
+epsilon = 0.0            # PPGC 使用的 epsilon 值
 NUM_CLIENTS_PER_NODE = 10  # 每个主机上的客户端数量
 
 # 检测是否有可用的 GPU，如果没有则使用 CPU
