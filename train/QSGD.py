@@ -12,12 +12,12 @@ class QSGD:
         norm = np.sqrt(np.sum(np.square(x)))  # 计算原向量的 L2 范数
         normalized_gradient = x / norm  # 计算每个元素量化后的级别（归一化幅值）
         
-        print("normalized_gradient:",normalized_gradient)
+        # print("normalized_gradient:",normalized_gradient)
         if epsilon > 0:
             normalized_gradient = DP.add_laplace(normalized_gradient, 2, epsilon)
             norm1 = np.sqrt(np.sum(np.square(normalized_gradient)))  # 计算原向量的 L2 范数
             normalized_gradient = normalized_gradient / norm1  # 计算每个元素量化后的级别（归一化幅值）
-        print("DP normalized_gradient:",normalized_gradient)
+        # print("DP normalized_gradient:",normalized_gradient)
         level_float = d * normalized_gradient
         # level_float = d * np.abs(x) / norm  # 计算每个元素量化后的级别（归一化幅值）
         previous_level = np.floor(level_float)
