@@ -130,12 +130,12 @@ def run_commands_in_parallel(mechanism):
 
 if __name__ == "__main__":
     # 提示用户输入机制类型
-    mechanism = input("Choose a mechanism from（baseline, QSGD, PPGC, ONEBIT, RAPPOR）: ").upper()
+    mechanism = input("Choose a mechanism from（BASELINE, QSGD, PPGC, ONEBIT, RAPPOR）: ").upper()
 
     # 检查输入的机制是否有效
-    valid_mechanisms = ["baseline", "QSGD", "PPGC", "ONEBIT", "RAPPOR"]
+    valid_mechanisms = ["BASELINE", "QSGD", "PPGC", "ONEBIT", "RAPPOR"]
     if mechanism not in valid_mechanisms:
-        print("无效的机制类型。请输入以下之一: baseline, QSGD, PPGC, ONEBIT, RAPPOR")
+        print("无效的机制类型。请输入以下之一: BASELINE, QSGD, PPGC, ONEBIT, RAPPOR")
     else:
         # 并行执行本地和远程命令
         run_commands_in_parallel(mechanism)

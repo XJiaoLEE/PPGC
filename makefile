@@ -1,6 +1,6 @@
 # Makefile to run distributed training script across multiple machines
 
-run_MNIST_baseline_master:
+run_MNIST_BASELINE_master:
 	@echo "Starting master node for distributed training with $(WORLD_SIZE) nodes..."
 	python3 train/FL_MNIST.py --world_size=$(world_size) --rank=$(rank) --dist_url=tcp://192.168.1.248:20008 --mechanism=baseline --out_bits=1
 
@@ -23,7 +23,7 @@ run_MNIST_RAPPOR_master:
 	python3 train/FL_MNIST.py --world_size=$(world_size) --rank=$(rank) --dist_url=tcp://192.168.1.248:20008 --mechanism=RAPPOR --out_bits=1
 
 
-run_MNIST_baseline_master_large:
+run_MNIST_BASELINE_master_large:
 	@echo "Starting master node for distributed training with $(WORLD_SIZE) nodes..."
 	python3 train/FL_MNIST_large.py --world_size=$(world_size) --rank=$(rank) --dist_url=tcp://192.168.1.248:20008 --mechanism=baseline --out_bits=1
 
