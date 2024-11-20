@@ -89,7 +89,7 @@ def run_commands_in_parallel(mechanism, epsilon):
     kill_process_on_port(20008)
     
     # 生成 epsilon 参数的字符串，如果 epsilon 为 0，则为空
-    epsilon_arg = f"--epsilon={epsilon}" if epsilon != 0 else ""
+    epsilon_arg = f"EPSILON={epsilon}" if epsilon != 0 else ""
 
     with ThreadPoolExecutor() as executor:
         futures = []
