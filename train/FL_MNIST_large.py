@@ -192,14 +192,18 @@ def train_client(rank, world_size, mechanism='baseline', out_bits=1):
         log_with_time(f"Local model accuracy of client {args.rank * NUM_CLIENTS_PER_NODE + client_idx} before aggregation: {local_accuracy:.4f}")
         local_models.append(model)
 
-    # 汇总所有客户端的模型参数（本地聚合时仅做加法）
+    # 汇总所有客户端的模型参数（本地聚合时取平均）
     global_model = create_model()
     with torch.no_grad():
-        for param in global_model.parameters():
-            param.data.zero_()
+        for param_global in global_model.parameters():
+            # 初始化为零
+            param_global.data.zero_()
+
+        # 对所有本地模型的参数进行累加并取平均
         for model in local_models:
             for param_global, param_local in zip(global_model.parameters(), model.parameters()):
-                param_global.data += param_local.data    
+                param_global.data += param_local.data / NUM_CLIENTS_PER_NODE
+
 
     # 测试模型准确性
     return global_model
