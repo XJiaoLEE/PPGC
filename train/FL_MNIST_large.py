@@ -28,7 +28,7 @@ NUM_ROUNDS = 150          # 联邦学习轮数
 EPOCHS_PER_CLIENT = 1    # 每轮客户端本地训练次数
 BATCH_SIZE = 8          # 批大小
 LEARNING_RATE = 0.001    # 学习率
-epsilon = 0.0            # PPGC 使用的 epsilon 值
+epsilon = 0.0            # DP 使用的 epsilon 值
 NUM_CLIENTS_PER_NODE = 10  # 每个主机上的客户端数量
 
 # 检测是否有可用的 GPU，如果没有则使用 CPU
@@ -50,7 +50,9 @@ parser.add_argument('--world_size', type=int, default=2, help='Number of process
 parser.add_argument('--rank', type=int, required=True, help='Rank of the current process')
 parser.add_argument('--dist_backend', type=str, default='nccl', help='Distributed backend')
 parser.add_argument('--dist_url', type=str, default='tcp://<master_ip>:<port>', help='URL used to set up distributed training')
+parser.add_argument('--epsilon', type=float, default=0, help='Privacy budget for Differential Privacy')
 args = parser.parse_args()
+epsilon = args.epsilon
 
 # 初始化进程组
 dist.init_process_group(backend=args.dist_backend, init_method=args.dist_url, world_size=args.world_size, rank=args.rank)

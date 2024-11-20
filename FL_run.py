@@ -22,8 +22,8 @@ nodes = {
 current_host_rank = 1  # 当前主机的 rank
 world_size = len(nodes)
 
-# 动态命令模板，用户可以在运行时修改它
-command_template = "cd {remote_directory} && git pull origin main && make run_MNIST_{mechanism}_master_large world_size={world_size} rank={rank}"
+# 动态命令模板，用户可以在运行时修改它，epsilon 参数会动态添加
+command_template = "cd {remote_directory} && git pull origin main && make run_MNIST_{mechanism}_master_large world_size={world_size} rank={rank} {epsilon_arg}"
 
 # 检查并杀死占用指定端口的进程
 def kill_process_on_port(port):
@@ -84,10 +84,13 @@ def ssh_execute_command(hostname, username, password, command):
         client.close()
         
 # 并行执行远程和本地命令
-def run_commands_in_parallel(mechanism):
+def run_commands_in_parallel(mechanism, epsilon):
     # 检查并杀死占用 20008 端口的进程
     kill_process_on_port(20008)
     
+    # 生成 epsilon 参数的字符串，如果 epsilon 为 0，则为空
+    epsilon_arg = f"--epsilon={epsilon}" if epsilon != 0 else ""
+
     with ThreadPoolExecutor() as executor:
         futures = []
         # rank=0的节点优先运行
@@ -97,7 +100,7 @@ def run_commands_in_parallel(mechanism):
         username = rank0_credentials['user']
         password = rank0_credentials['password']
         remote_directory = rank0_credentials['remote_directory']
-        command = command_template.format(remote_directory=remote_directory, world_size=world_size, rank=rank, mechanism=mechanism)
+        command = command_template.format(remote_directory=remote_directory, world_size=world_size, rank=rank, mechanism=mechanism, epsilon_arg=epsilon_arg)
         futures.append(executor.submit(ssh_execute_command, rank0_hostname, username, password, command))
 
         # 确保 rank=0 的节点先启动一小段时间
@@ -113,8 +116,8 @@ def run_commands_in_parallel(mechanism):
             remote_directory = credentials['remote_directory']
             
             # 根据模板生成远程主机要执行的命令
-            command = command_template.format(remote_directory=remote_directory, world_size=world_size, rank=rank, mechanism=mechanism)
-            print("command:--",command)
+            command = command_template.format(remote_directory=remote_directory, world_size=world_size, rank=rank, mechanism=mechanism, epsilon_arg=epsilon_arg)
+            print("command:--", command)
 
             # 提交远程任务
             futures.append(executor.submit(ssh_execute_command, hostname, username, password, command))
@@ -132,12 +135,15 @@ if __name__ == "__main__":
     # 提示用户输入机制类型
     mechanism = input("Choose a mechanism from（BASELINE, QSGD, PPGC, ONEBIT, RAPPOR）: ").upper()
 
+    # 提示用户输入 epsilon 值
+    epsilon = float(input("Enter the epsilon value (enter 0 if not applicable): "))
+
     # 检查输入的机制是否有效
     valid_mechanisms = ["BASELINE", "QSGD", "PPGC", "ONEBIT", "RAPPOR"]
     if mechanism not in valid_mechanisms:
         print("无效的机制类型。请输入以下之一: BASELINE, QSGD, PPGC, ONEBIT, RAPPOR")
     else:
         # 并行执行本地和远程命令
-        run_commands_in_parallel(mechanism)
+        run_commands_in_parallel(mechanism, epsilon)
 
     print("Distributed Federated Learning Done。")
