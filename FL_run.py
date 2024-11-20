@@ -133,7 +133,7 @@ if __name__ == "__main__":
     mechanism = input("Choose a mechanism from（baseline, QSGD, PPGC, ONEBIT, RAPPOR）: ").upper()
 
     # 检查输入的机制是否有效
-    valid_mechanisms = ["BASELINE", "QSGD", "PPGC", "ONEBIT", "RAPPOR"]
+    valid_mechanisms = ["baseline", "QSGD", "PPGC", "ONEBIT", "RAPPOR"]
     if mechanism not in valid_mechanisms:
         print("无效的机制类型。请输入以下之一: baseline, QSGD, PPGC, ONEBIT, RAPPOR")
     else:
