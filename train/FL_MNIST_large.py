@@ -118,12 +118,13 @@ def create_model():
     return model
 
 # 每个客户端上训练模型，并在上传前进行量化
-def train_client(rank, world_size, mechanism='baseline', out_bits=1):
+def train_client(global_model, rank, world_size, mechanism='baseline', out_bits=1):
     client_datasets, test_loader = load_data()
 
     local_models = []
     for client_idx in range(NUM_CLIENTS_PER_NODE):
         model = create_model()
+        model.load_state_dict(global_model.state_dict())  # 使用全局模型的参数作为初始参数
         model.train()
         optimizer = optim.SGD(model.parameters(), lr=LEARNING_RATE, momentum=0.9)
         criterion = nn.CrossEntropyLoss()
@@ -192,21 +193,17 @@ def train_client(rank, world_size, mechanism='baseline', out_bits=1):
         log_with_time(f"Local model accuracy of client {args.rank * NUM_CLIENTS_PER_NODE + client_idx} before aggregation: {local_accuracy:.4f}")
         local_models.append(model)
 
-    # 汇总所有客户端的模型参数（本地聚合时取平均）
-    global_model = create_model()
+    # 使用一个新的临时模型汇总所有客户端的模型参数（本地聚合时取平均）
+    temp_global_model = create_model()
     with torch.no_grad():
-        for param_global in global_model.parameters():
-            # 初始化为零
-            param_global.data.zero_()
+        for param_temp in temp_global_model.parameters():
+            param_temp.data.zero_()
 
-        # 对所有本地模型的参数进行累加并取平均
         for model in local_models:
-            for param_global, param_local in zip(global_model.parameters(), model.parameters()):
-                param_global.data += param_local.data / NUM_CLIENTS_PER_NODE
+            for param_temp, param_local in zip(temp_global_model.parameters(), model.parameters()):
+                param_temp.data += param_local.data / NUM_CLIENTS_PER_NODE
 
-
-    # 测试模型准确性
-    return global_model
+    return temp_global_model
 
 # 测试模型准确性
 def test_model(model, test_loader):
@@ -231,7 +228,7 @@ def federated_learning(mechanism):
     for round in range(NUM_ROUNDS):
         log_with_time(f"Round {round + 1}/{NUM_ROUNDS} started")
 
-        client_model = train_client(args.rank, args.world_size, mechanism=mechanism, out_bits=args.out_bits)
+        client_model = train_client(global_model, args.rank, args.world_size, mechanism=mechanism, out_bits=args.out_bits)
 
         # 聚合客户端模型参数
         dist.barrier()  # 确保所有节点都完成训练再进行聚合
