@@ -185,8 +185,9 @@ def train_client(global_model, rank, world_size, mechanism='BASELINE', out_bits=
                         if param.grad is not None:
                             tensor = param.grad
                             perturbed_grad, shape = terngrad_instance.compress(tensor)
-                            perturbed_grad = perturbed_grad[0] if isinstance(perturbed_grad, tuple) else perturbed_grad
-                            param.grad = torch.from_numpy(perturbed_grad).to(dtype=param.grad.dtype, device=device)
+                            param.grad = perturbed_grad[0] if isinstance(perturbed_grad, tuple) else perturbed_grad
+                            # perturbed_grad = perturbed_grad[0] if isinstance(perturbed_grad, tuple) else perturbed_grad
+                            # param.grad = torch.from_numpy(perturbed_grad).to(dtype=param.grad.dtype, device=device)
 
                             # param.grad = torch.from_numpy(perturbed_grad).to(dtype=param.grad.dtype, device=device)
 
