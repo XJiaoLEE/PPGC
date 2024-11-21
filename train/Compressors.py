@@ -112,7 +112,7 @@ class TernGrad:
         return
     
     def compress(self, tensor):
-        shape = tensor.size()
+        shape = tensor.shape
         tensor = tensor.flatten()
 
         if self.epsilon > 0 :
