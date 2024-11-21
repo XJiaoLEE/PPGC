@@ -139,7 +139,7 @@ if __name__ == "__main__":
     epsilon = float(input("Enter the epsilon value (enter 0 if not applicable): "))
 
     # 检查输入的机制是否有效
-    valid_mechanisms = ["BASELINE", "QSGD", "PPGC", "ONEBIT", "RAPPOR", "TernGrad"]
+    valid_mechanisms = ["BASELINE", "QSGD", "PPGC", "ONEBIT", "RAPPOR", "TERNGRAD"]
     if mechanism not in valid_mechanisms:
         print("无效的机制类型。请输入以下之一: BASELINE, QSGD, PPGC, ONEBIT, RAPPOR, TernGrad")
     else:
