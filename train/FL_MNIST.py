@@ -9,9 +9,10 @@ from datetime import datetime
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader, random_split
 from mechanisms import RAPPORMechanism
-from QSGD import QSGD
-from PPGC import PPGC  # 导入 PPGC 模块
-from ONEBIT import QuantizedSGDCommunicator
+from Compressors import PPGC, QSGD, TernGrad, OneBit
+# from QSGD import QSGD
+# from PPGC import PPGC  # 导入 PPGC 模块
+# from ONEBIT import OneBit
 import torch.distributed as dist
 import torch.multiprocessing as mp
 from torch.nn.parallel import DistributedDataParallel as DDP
@@ -122,11 +123,11 @@ def train_client(global_model, rank, world_size, mechanism='baseline', out_bits=
     optimizer = optim.SGD(model.parameters(), lr=LEARNING_RATE, momentum=0.9)
     criterion = nn.CrossEntropyLoss()
     if mechanism == 'QSGD':
-        qsgd_instance = QSGD()
+        qsgd_instance = QSGD(epsilon)
     elif mechanism == 'PPGC':
         ppgc_instance = PPGC(epsilon, out_bits, model)  # 创建 PPGC 实例
     elif mechanism == 'ONEBIT':
-        onebit_instance = QuantizedSGDCommunicator()
+        onebit_instance = OneBit(epsilon)
         onebit_instance.initialize_error_feedback(model)
     elif mechanism == 'RAPPOR':
         rappor_instance = RAPPORMechanism(out_bits, epsilon, out_bits)  # 创建 RAPPOR 实例

@@ -9,9 +9,10 @@ from datetime import datetime
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader, random_split
 from mechanisms import RAPPORMechanism
-from QSGD import QSGD
-from PPGC import PPGC  # 导入 PPGC 模块
-from ONEBIT import QuantizedSGDCommunicator
+from Compressors import PPGC, QSGD, TernGrad, OneBit
+# from QSGD import QSGD
+# from PPGC import PPGC  # 导入 PPGC 模块
+# from ONEBIT import OneBit
 import torch.distributed as dist
 import torch.multiprocessing as mp
 from torch.nn.parallel import DistributedDataParallel as DDP
@@ -69,22 +70,11 @@ def log_with_time(message):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     print(f"[{timestamp}] {message}")
 
-# # QSGD量化函数
-# def quantize(x, d):
-#     """Quantize the tensor x to d levels based on absolute value coefficient-wise."""
-#     norm = np.sqrt(np.sum(np.square(x)))
-#     level_float = d * np.abs(x) / norm
-#     previous_level = np.floor(level_float)
-#     is_next_level = np.random.rand(*x.shape) < (level_float - previous_level)
-#     new_level = previous_level + is_next_level
-#     return np.sign(x) * norm * new_level / d
-
 # MNIST 数据加载
 def load_data():
     data_path = './data'
     train_dataset = datasets.MNIST(root=data_path, train=True, download=True, transform=transform)
     test_dataset = datasets.MNIST(root=data_path, train=False, download=True, transform=transform)
-    # client_datasets = random_split(train_dataset, [len(train_dataset) // (args.world_size * NUM_CLIENTS_PER_NODE)] * (args.world_size * NUM_CLIENTS_PER_NODE))
     client_datasets = random_split(train_dataset, [len(train_dataset) // (args.world_size * NUM_CLIENTS_PER_NODE)] * (args.world_size * NUM_CLIENTS_PER_NODE))
     client_datasets = [DataLoader(ds, batch_size=BATCH_SIZE, shuffle=True) for ds in client_datasets]
 
@@ -131,14 +121,16 @@ def train_client(global_model, rank, world_size, mechanism='baseline', out_bits=
         optimizer = optim.SGD(model.parameters(), lr=LEARNING_RATE, momentum=0.9)
         criterion = nn.CrossEntropyLoss()
         if mechanism == 'QSGD':
-            qsgd_instance = QSGD()
+            qsgd_instance = QSGD(epsilon)
         elif mechanism == 'PPGC':
             ppgc_instance = PPGC(epsilon, out_bits, model)  # 创建 PPGC 实例
         elif mechanism == 'ONEBIT':
-            onebit_instance = QuantizedSGDCommunicator()
+            onebit_instance = OneBit(epsilon)
             onebit_instance.initialize_error_feedback(model)
         elif mechanism == 'RAPPOR':
             rappor_instance = RAPPORMechanism(out_bits, epsilon, out_bits)  # 创建 RAPPOR 实例
+        elif mechanism == 'TernGrad':
+            terngrad_instance = TernGrad(epsilon)
         # client_loader = DataLoader(client_datasets[args.rank * NUM_CLIENTS_PER_NODE:(args.rank + 1) * NUM_CLIENTS_PER_NODE], batch_size=BATCH_SIZE, shuffle=True)
         client_loader = client_datasets[args.rank * NUM_CLIENTS_PER_NODE + client_idx]
         
@@ -188,6 +180,19 @@ def train_client(global_model, rank, world_size, mechanism='baseline', out_bits=
                             # 返回到原始范围
                             # perturbed_grad_rescaled = torch.tensor(perturbed_grad, dtype=param.grad.dtype).to(device)
                             # param.grad = perturbed_grad_rescaled * (max_grad - min_grad) + min_grad
+                elif mechanism == 'TernGrad':
+                    for param in model.module.parameters():
+                        if param.grad is not None:
+                            # 将检测过的模型参数进行根据化到 [0, 1] 范围
+                            min_grad = param.grad.min().item()
+                            max_grad = param.grad.max().item()
+                            normalized_grad = (param.grad - min_grad) / (max_grad - min_grad)
+
+                            # 使用 RAPPOR 机制进行批量化
+                            perturbed_grad = rappor_instance.privatize(normalized_grad.cpu().numpy())
+                            param.grad = torch.tensor(perturbed_grad, dtype=param.grad.dtype).to(device)
+                    terngrad_instance = TernGrad(epsilon)
+
 
                 optimizer.step()
                 # 聚合前测试本地模型
