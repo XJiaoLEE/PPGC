@@ -183,15 +183,8 @@ def train_client(global_model, rank, world_size, mechanism='BASELINE', out_bits=
                 elif mechanism == 'TERNGRAD':
                     for param in model.module.parameters():
                         if param.grad is not None:
-                            # 将检测过的模型参数进行根据化到 [0, 1] 范围
-                            min_grad = param.grad.min().item()
-                            max_grad = param.grad.max().item()
-                            normalized_grad = (param.grad - min_grad) / (max_grad - min_grad)
-
-                            # 使用 RAPPOR 机制进行批量化
-                            perturbed_grad = rappor_instance.privatize(normalized_grad.cpu().numpy())
+                            perturbed_grad, shape = terngrad_instance.privatize(param.grad.cpu().numpy())
                             param.grad = torch.tensor(perturbed_grad, dtype=param.grad.dtype).to(device)
-                    terngrad_instance = TernGrad(epsilon)
 
 
                 optimizer.step()

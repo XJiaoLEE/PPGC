@@ -85,7 +85,7 @@ class QSGD:
         if self.epsilon > 0:
             sensitivity = x.max() - x.min()
             x = DP.add_laplace(x, sensitivity, self.epsilon)
-            normalized_gradient = DP.add_laplace(normalized_gradient, sensitivity, epsilon)
+            # normalized_gradient = DP.add_laplace(normalized_gradient, sensitivity, self.epsilon)
 
         sign = np.sign(x).astype(np.int8)  # 保留原向量的符号信息
         norm = np.sqrt(np.sum(np.square(x)))  # 计算原向量的 L2 范数
@@ -172,6 +172,12 @@ class OneBit:
     def local_quantize(self, name, param):
         # Add error feedback to local gradients
         local_gradients = param.grad.cpu().numpy()
+
+        # add noise
+        if self.epsilon > 0:
+            sensitivity = self.error_feedback[name].max() - self.error_feedback[name].min()
+            self.error_feedback[name] = DP.add_laplace(self.error_feedback[name], sensitivity, self.epsilon)
+
         adjusted_gradients = local_gradients + self.error_feedback[name]
 
         # Quantize adjusted gradients
