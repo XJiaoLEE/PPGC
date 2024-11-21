@@ -50,3 +50,4 @@ run_MNIST_TernGrad_master_large:
 	@echo "Starting master node for distributed training with $(WORLD_SIZE) nodes..."
 	python3 train/FL_MNIST_large.py --world_size=$(world_size) --rank=$(rank) --dist_url=tcp://192.168.1.248:20008 --mechanism=TernGrad --out_bits=1 $(EPSILON_ARG)
 
+
