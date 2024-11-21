@@ -3,6 +3,7 @@ import numpy as np
 import math
 import sympy as sp
 from utils import transform, discrete
+import torch
 
 
 #################################ADD NOISE#######################################
@@ -16,8 +17,23 @@ def add_laplace(updates, sensitivity, epsilon):
     '''
     inject laplacian noise to a vector
     '''
+    # lambda_ = sensitivity * 1.0 / epsilon
+    # updates += np.random.laplace(loc=0, scale=lambda_, size=updates.shape)
+    # return updates
+    # 计算拉普拉斯噪声的尺度参数 lambda
     lambda_ = sensitivity * 1.0 / epsilon
-    updates += np.random.laplace(loc=0, scale=lambda_, size=updates.shape)
+
+    if isinstance(updates, np.ndarray):
+        # 如果是 NumPy 数组，直接生成拉普拉斯噪声并添加
+        noise = np.random.laplace(loc=0, scale=lambda_, size=updates.shape)
+        updates += noise
+    elif isinstance(updates, torch.Tensor):
+        # 如果是 PyTorch 张量，生成拉普拉斯噪声并添加
+        noise = torch.from_numpy(np.random.laplace(loc=0, scale=lambda_, size=updates.shape)).to(updates.device)
+        updates += noise
+    else:
+        raise TypeError("Unsupported type for add_laplace. Expected np.ndarray or torch.Tensor.")
+
     return updates
 
 
