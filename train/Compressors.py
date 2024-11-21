@@ -173,12 +173,12 @@ class OneBit:
         # Add error feedback to local gradients
         local_gradients = param.grad.cpu().numpy()
 
+        adjusted_gradients = local_gradients + self.error_feedback[name]
+
         # add noise
         if self.epsilon > 0:
-            sensitivity = self.error_feedback[name].max() - self.error_feedback[name].min()
-            self.error_feedback[name] = DP.add_laplace(self.error_feedback[name], sensitivity, self.epsilon)
-
-        adjusted_gradients = local_gradients + self.error_feedback[name]
+            sensitivity = adjusted_gradients.max() - adjusted_gradients.min()
+            adjusted_gradients = DP.add_laplace(adjusted_gradients, sensitivity, self.epsilon)
 
         # Quantize adjusted gradients
         quantized_local_gradients = self.quantizer.quantize(adjusted_gradients)
