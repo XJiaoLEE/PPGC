@@ -134,13 +134,13 @@ def run_commands_in_parallel(mechanism, epsilon):
 
 if __name__ == "__main__":
     # 提示用户输入机制类型
-    mechanism = input("Choose a mechanism from（BASELINE, QSGD, PPGC, ONEBIT, RAPPOR, TernGrad）: ").upper()
+    mechanism = input("Choose a mechanism from（BASELINE, QSGD, PPGC, ONEBIT, RAPPOR, TERNGRAD: ").upper()
 
     # 提示用户输入 epsilon 值
     epsilon = float(input("Enter the epsilon value (enter 0 if not applicable): "))
 
     # 检查输入的机制是否有效
-    valid_mechanisms = ["BASELINE", "QSGD", "PPGC", "ONEBIT", "RAPPOR", "TernGrad"]
+    valid_mechanisms = ["BASELINE", "QSGD", "PPGC", "ONEBIT", "RAPPOR", "TERNGRAD"]
     if mechanism not in valid_mechanisms:
         print("无效的机制类型。请输入以下之一: BASELINE, QSGD, PPGC, ONEBIT, RAPPOR, TernGrad")
     else:
