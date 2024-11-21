@@ -115,9 +115,17 @@ class TernGrad:
         shape = tensor.size()
         tensor = tensor.flatten()
 
-        if self.epsilon > 0 :
-            sensitivity = tensor.max() - tensor.min()
-            tensor = DP.add_laplace(tensor, sensitivity, self.epsilon)
+        # if self.epsilon > 0 :
+        #     sensitivity = tensor.max() - tensor.min()
+        #     tensor = DP.add_laplace(tensor, sensitivity, self.epsilon)
+        if self.epsilon > 0:
+            # 将 tensor 转换为 NumPy 数组
+            tensor_np = tensor.cpu().numpy()
+            sensitivity = tensor_np.max() - tensor_np.min()
+            # 添加拉普拉斯噪声
+            tensor_np = DP.add_laplace(tensor_np, sensitivity, self.epsilon)
+            # 将添加噪声后的 NumPy 数组转换回 PyTorch 张量
+            tensor = torch.tensor(tensor_np, dtype=tensor.dtype, device=tensor.device)
 
         std = (tensor - torch.mean(tensor)) ** 2
         std = torch.sqrt(torch.mean(std))
