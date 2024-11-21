@@ -44,8 +44,8 @@ transform = transforms.Compose([
 
 # 处理命令行参数
 parser = argparse.ArgumentParser(description='Federated Learning with mechanism selection')
-parser.add_argument('--mechanism', type=str, default='baseline', choices=['baseline', 'PPGC', 'QSGD', 'ONEBIT', 'RAPPOR', 'TernGrad'],
-                    help='Choose the aggregation mechanism: "baseline", "PPGC", "QSGD", "ONEBIT", "RAPPOR" or "TernGrad"')
+parser.add_argument('--mechanism', type=str, default='BASELINE', choices=['BASELINE', 'PPGC', 'QSGD', 'ONEBIT', 'RAPPOR', 'TERNGRAD'],
+                    help='Choose the aggregation mechanism: "BASELINE", "PPGC", "QSGD", "ONEBIT", "RAPPOR" or "TERNGRAD"')
 parser.add_argument('--out_bits', type=int, default=2, help='Number of bits for QSGD or PPGC quantization')
 parser.add_argument('--world_size', type=int, default=2, help='Number of processes participating in the job')
 parser.add_argument('--rank', type=int, required=True, help='Rank of the current process')
@@ -110,7 +110,7 @@ def create_model():
     return model
 
 # 每个客户端上训练模型，并在上传前进行量化
-def train_client(global_model, rank, world_size, mechanism='baseline', out_bits=1):
+def train_client(global_model, rank, world_size, mechanism='BASELINE', out_bits=1):
     client_datasets, test_loader = load_data()
 
     local_models = []
@@ -129,7 +129,7 @@ def train_client(global_model, rank, world_size, mechanism='baseline', out_bits=
             onebit_instance.initialize_error_feedback(model)
         elif mechanism == 'RAPPOR':
             rappor_instance = RAPPORMechanism(out_bits, epsilon, out_bits)  # 创建 RAPPOR 实例
-        elif mechanism == 'TernGrad':
+        elif mechanism == 'TERNGRAD':
             terngrad_instance = TernGrad(epsilon)
         # client_loader = DataLoader(client_datasets[args.rank * NUM_CLIENTS_PER_NODE:(args.rank + 1) * NUM_CLIENTS_PER_NODE], batch_size=BATCH_SIZE, shuffle=True)
         client_loader = client_datasets[args.rank * NUM_CLIENTS_PER_NODE + client_idx]
@@ -180,7 +180,7 @@ def train_client(global_model, rank, world_size, mechanism='baseline', out_bits=
                             # 返回到原始范围
                             # perturbed_grad_rescaled = torch.tensor(perturbed_grad, dtype=param.grad.dtype).to(device)
                             # param.grad = perturbed_grad_rescaled * (max_grad - min_grad) + min_grad
-                elif mechanism == 'TernGrad':
+                elif mechanism == 'TERNGRAD':
                     for param in model.module.parameters():
                         if param.grad is not None:
                             # 将检测过的模型参数进行根据化到 [0, 1] 范围
