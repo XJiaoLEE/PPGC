@@ -44,8 +44,8 @@ transform = transforms.Compose([
 
 # 处理命令行参数
 parser = argparse.ArgumentParser(description='Federated Learning with mechanism selection')
-parser.add_argument('--mechanism', type=str, default='baseline', choices=['baseline', 'PPGC', 'QSGD', 'ONEBIT', 'RAPPOR'],
-                    help='Choose the aggregation mechanism: "baseline", "PPGC", "QSGD", "ONEBIT" or "RAPPOR"')
+parser.add_argument('--mechanism', type=str, default='baseline', choices=['baseline', 'PPGC', 'QSGD', 'ONEBIT', 'RAPPOR', 'TernGrad'],
+                    help='Choose the aggregation mechanism: "baseline", "PPGC", "QSGD", "ONEBIT", "RAPPOR" or "TernGrad"')
 parser.add_argument('--out_bits', type=int, default=2, help='Number of bits for QSGD or PPGC quantization')
 parser.add_argument('--world_size', type=int, default=2, help='Number of processes participating in the job')
 parser.add_argument('--rank', type=int, required=True, help='Rank of the current process')
