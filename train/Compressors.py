@@ -125,7 +125,8 @@ class TernGrad:
             # 添加拉普拉斯噪声
             tensor_np = DP.add_laplace(tensor_np, sensitivity, self.epsilon)
             # 将添加噪声后的 NumPy 数组转换回 PyTorch 张量
-            tensor = torch.tensor(tensor_np, dtype=tensor.dtype, device=tensor.device)
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            tensor = torch.tensor(tensor_np, dtype=tensor.dtype, device=device)
 
         std = (tensor - torch.mean(tensor)) ** 2
         std = torch.sqrt(torch.mean(std))
