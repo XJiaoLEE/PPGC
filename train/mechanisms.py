@@ -148,12 +148,17 @@ class MultinomialSamplingMechanism(CompressedMechanism):
         return
     
     def privatize(self, x):
+        
         # 将梯度向量展平为一维
         original_shape = x.shape
         flatten_gradient_vector = x.flatten()
+        # 将检测过的模型参数进行根据化到 [0, 1] 范围
+        min_grad = flatten_gradient_vector.min
+        max_grad = flatten_gradient_vector.max
+        normalized_grad = (flatten_gradient_vector - min_grad) / (max_grad - min_grad)
 
         # 调用 dither 函数对展平的梯度进行扰动
-        z = self.dither(flatten_gradient_vector, self.input_bits)
+        z = self.dither(normalized_grad, self.input_bits)
 
         B = 2**self.budget
         range_B = np.arange(B).astype(int)
