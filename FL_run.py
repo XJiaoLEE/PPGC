@@ -5,6 +5,7 @@ import subprocess
 import select
 import os
 import time
+import argparse
 
 # 节点信息，包括远程主机的IP地址、用户名、密码和用户的XXXXX/PPGC目录
 nodes = {
@@ -17,6 +18,12 @@ nodes = {
     "192.168.1.199": {"user": "ddddddd", "password": "ddddddd", "remote_directory": "/home/ddddddd/XXXXX/PPGC"},
     "192.168.1.248": {"user": "dddddddd", "password": "dddddddd", "remote_directory": "/home/dddddddd/XXXXX/PPGC"}
 }
+
+parser = argparse.ArgumentParser(description='Federated Learning with mechanism selection')
+parser.add_argument('--mechanism', type=str, default='BASELINE', choices=['BASELINE', 'PPGC', 'QSGD', 'ONEBIT', 'RAPPOR', 'TERNGRAD'],
+                    help='Choose the aggregation mechanism: "BASELINE", "PPGC", "QSGD", "ONEBIT", "RAPPOR" or "TERNGRAD"')
+parser.add_argument('--epsilon', type=float, default=0, help='Privacy budget for Differential Privacy')
+args = parser.parse_args()
 
 # 当前主机的 rank 和 world_size
 current_host_rank = 1  # 当前主机的 rank
@@ -133,18 +140,20 @@ def run_commands_in_parallel(mechanism, epsilon):
                 print(f"任务执行失败: {e}")
 
 if __name__ == "__main__":
-    # 提示用户输入机制类型
-    mechanism = input("Choose a mechanism from（BASELINE, QSGD, PPGC, ONEBIT, RAPPOR, TERNGRAD: ").upper()
+    # # 提示用户输入机制类型
+    # mechanism = input("Choose a mechanism from（BASELINE, QSGD, PPGC, ONEBIT, RAPPOR, TERNGRAD: ").upper()
 
-    # 提示用户输入 epsilon 值
-    epsilon = float(input("Enter the epsilon value (enter 0 if not applicable): "))
+    # # 提示用户输入 epsilon 值
+    # epsilon = float(input("Enter the epsilon value (enter 0 if not applicable): "))
 
-    # 检查输入的机制是否有效
-    valid_mechanisms = ["BASELINE", "QSGD", "PPGC", "ONEBIT", "RAPPOR", "TERNGRAD"]
-    if mechanism not in valid_mechanisms:
-        print("无效的机制类型。请输入以下之一: BASELINE, QSGD, PPGC, ONEBIT, RAPPOR, TernGrad")
-    else:
-        # 并行执行本地和远程命令
-        run_commands_in_parallel(mechanism, epsilon)
+    # # 检查输入的机制是否有效
+    # valid_mechanisms = ["BASELINE", "QSGD", "PPGC", "ONEBIT", "RAPPOR", "TERNGRAD"]
+    # if mechanism not in valid_mechanisms:
+    #     print("无效的机制类型。请输入以下之一: BASELINE, QSGD, PPGC, ONEBIT, RAPPOR, TernGrad")
+    # else:
+    mechanism = args.mechanism
+    epsilon = args.epsilon
+    # 并行执行本地和远程命令
+    run_commands_in_parallel(mechanism, epsilon)
 
     print("Distributed Federated Learning Done。")
