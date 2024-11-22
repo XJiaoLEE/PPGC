@@ -143,107 +143,58 @@ def train_client(global_model, rank, world_size, mechanism='BASELINE', out_bits=
                 loss = criterion(output, target)
                 loss.backward()
 
-                # # 根据机制对梯度进行量化
-                # if mechanism == 'QSGD':
-                #     for param in model.module.parameters():
-                #         if param.grad is not None:
-                #             param_np = param.grad.cpu().numpy()
-                #             quantized_gradient, norm = qsgd_instance.quantize(param_np, out_bits, epsilon)
-                #             # quantized_gradient = quantize(param_np, 2 ** out_bits)
-                #             param.grad = torch.tensor(quantized_gradient, dtype=param.dtype).to(device)
+                # 根据机制对梯度进行量化
+                if mechanism == 'QSGD':
+                    for param in model.module.parameters():
+                        if param.grad is not None:
+                            param_np = param.grad.cpu().numpy()
+                            quantized_gradient, norm = qsgd_instance.quantize(param_np, out_bits, epsilon)
+                            # quantized_gradient = quantize(param_np, 2 ** out_bits)
+                            param.grad = torch.tensor(quantized_gradient, dtype=param.dtype).to(device)
 
-                # elif mechanism == 'PPGC':
-                #     for name, param in model.module.named_parameters() if hasattr(model, 'module') else model.named_parameters():
-                #         if param.grad is not None:
-                #             quantized_gradient = ppgc_instance.map_gradient(name, param)
-                #             param.grad = torch.tensor(quantized_gradient, dtype=param.dtype).to(device)
+                elif mechanism == 'PPGC':
+                    for name, param in model.module.named_parameters() if hasattr(model, 'module') else model.named_parameters():
+                        if param.grad is not None:
+                            quantized_gradient = ppgc_instance.map_gradient(name, param)
+                            param.grad = torch.tensor(quantized_gradient, dtype=param.dtype).to(device)
 
-                # elif mechanism == 'ONEBIT':
-                #     # for name, param in model.module.parameters():
-                #     for name, param in model.module.named_parameters() if hasattr(model, 'module') else model.named_parameters():
-                #         if param.grad is not None:
-                #             quantized_gradient = onebit_instance.apply_1bit_sgd_quantization(name, param)
-                #             param.grad = torch.tensor(quantized_gradient, dtype=param.dtype).to(device)
+                elif mechanism == 'ONEBIT':
+                    # for name, param in model.module.parameters():
+                    for name, param in model.module.named_parameters() if hasattr(model, 'module') else model.named_parameters():
+                        if param.grad is not None:
+                            quantized_gradient = onebit_instance.apply_1bit_sgd_quantization(name, param)
+                            param.grad = torch.tensor(quantized_gradient, dtype=param.dtype).to(device)
 
-                # elif mechanism == 'RAPPOR':
-                #     for param in model.module.parameters():
-                #         if param.grad is not None:
-                #             # 将检测过的模型参数进行根据化到 [0, 1] 范围
-                #             min_grad = param.grad.min().item()
-                #             max_grad = param.grad.max().item()
-                #             normalized_grad = (param.grad - min_grad) / (max_grad - min_grad)
+                elif mechanism == 'RAPPOR':
+                    for param in model.module.parameters():
+                        if param.grad is not None:
+                            # 将检测过的模型参数进行根据化到 [0, 1] 范围
+                            min_grad = param.grad.min().item()
+                            max_grad = param.grad.max().item()
+                            normalized_grad = (param.grad - min_grad) / (max_grad - min_grad)
 
-                #             # 使用 RAPPOR 机制进行批量化
-                #             perturbed_grad = rappor_instance.privatize(normalized_grad.cpu().numpy())
-                #             param.grad = torch.tensor(perturbed_grad, dtype=param.grad.dtype).to(device)
+                            # 使用 RAPPOR 机制进行批量化
+                            perturbed_grad = rappor_instance.privatize(normalized_grad.cpu().numpy())
+                            param.grad = torch.tensor(perturbed_grad, dtype=param.grad.dtype).to(device)
 
-                #             # 返回到原始范围
-                #             # perturbed_grad_rescaled = torch.tensor(perturbed_grad, dtype=param.grad.dtype).to(device)
-                #             # param.grad = perturbed_grad_rescaled * (max_grad - min_grad) + min_grad
-                # elif mechanism == 'TERNGRAD':
-                #     for param in model.module.parameters():
-                #         if param.grad is not None:
-                #             tensor = param.grad
-                #             perturbed_grad, shape = terngrad_instance.compress(tensor)
-                #             param.grad = perturbed_grad[0] if isinstance(perturbed_grad, tuple) else perturbed_grad
-                #             # perturbed_grad = perturbed_grad[0] if isinstance(perturbed_grad, tuple) else perturbed_grad
-                #             # param.grad = torch.from_numpy(perturbed_grad).to(dtype=param.grad.dtype, device=device)
+                            # 返回到原始范围
+                            # perturbed_grad_rescaled = torch.tensor(perturbed_grad, dtype=param.grad.dtype).to(device)
+                            # param.grad = perturbed_grad_rescaled * (max_grad - min_grad) + min_grad
+                elif mechanism == 'TERNGRAD':
+                    for param in model.module.parameters():
+                        if param.grad is not None:
+                            tensor = param.grad
+                            perturbed_grad, shape = terngrad_instance.compress(tensor)
+                            param.grad = perturbed_grad[0] if isinstance(perturbed_grad, tuple) else perturbed_grad
+                            # perturbed_grad = perturbed_grad[0] if isinstance(perturbed_grad, tuple) else perturbed_grad
+                            # param.grad = torch.from_numpy(perturbed_grad).to(dtype=param.grad.dtype, device=device)
 
-                #             # param.grad = torch.from_numpy(perturbed_grad).to(dtype=param.grad.dtype, device=device)
+                            # param.grad = torch.from_numpy(perturbed_grad).to(dtype=param.grad.dtype, device=device)
 
-                #             # param.grad = torch.tensor(perturbed_grad, dtype=param.grad.dtype).to(device)
+                            # param.grad = torch.tensor(perturbed_grad, dtype=param.grad.dtype).to(device)
 
                 optimizer.step()
                 # 聚合前测试本地模型
-        # 根据机制对梯度进行量化
-        if mechanism == 'QSGD':
-            for param in model.module.parameters():
-                if param.grad is not None:
-                    param_np = param.grad.cpu().numpy()
-                    quantized_gradient, norm = qsgd_instance.quantize(param_np, out_bits, epsilon)
-                    # quantized_gradient = quantize(param_np, 2 ** out_bits)
-                    param.grad = torch.tensor(quantized_gradient, dtype=param.dtype).to(device)
-
-        elif mechanism == 'PPGC':
-            for name, param in model.module.named_parameters() if hasattr(model, 'module') else model.named_parameters():
-                if param.grad is not None:
-                    quantized_gradient = ppgc_instance.map_gradient(name, param)
-                    param.grad = torch.tensor(quantized_gradient, dtype=param.dtype).to(device)
-
-        elif mechanism == 'ONEBIT':
-            # for name, param in model.module.parameters():
-            for name, param in model.module.named_parameters() if hasattr(model, 'module') else model.named_parameters():
-                if param.grad is not None:
-                    quantized_gradient = onebit_instance.apply_1bit_sgd_quantization(name, param)
-                    param.grad = torch.tensor(quantized_gradient, dtype=param.dtype).to(device)
-
-        elif mechanism == 'RAPPOR':
-            for param in model.module.parameters():
-                if param.grad is not None:
-                    # 将检测过的模型参数进行根据化到 [0, 1] 范围
-                    min_grad = param.grad.min().item()
-                    max_grad = param.grad.max().item()
-                    normalized_grad = (param.grad - min_grad) / (max_grad - min_grad)
-
-                    # 使用 RAPPOR 机制进行批量化
-                    perturbed_grad = rappor_instance.privatize(normalized_grad.cpu().numpy())
-                    param.grad = torch.tensor(perturbed_grad, dtype=param.grad.dtype).to(device)
-
-                    # 返回到原始范围
-                    # perturbed_grad_rescaled = torch.tensor(perturbed_grad, dtype=param.grad.dtype).to(device)
-                    # param.grad = perturbed_grad_rescaled * (max_grad - min_grad) + min_grad
-        elif mechanism == 'TERNGRAD':
-            for param in model.module.parameters():
-                if param.grad is not None:
-                    tensor = param.grad
-                    perturbed_grad, shape = terngrad_instance.compress(tensor)
-                    param.grad = perturbed_grad[0] if isinstance(perturbed_grad, tuple) else perturbed_grad
-                    # perturbed_grad = perturbed_grad[0] if isinstance(perturbed_grad, tuple) else perturbed_grad
-                    # param.grad = torch.from_numpy(perturbed_grad).to(dtype=param.grad.dtype, device=device)
-
-                    # param.grad = torch.from_numpy(perturbed_grad).to(dtype=param.grad.dtype, device=device)
-
-                    # param.grad = torch.tensor(perturbed_grad, dtype=param.grad.dtype).to(device)
 
         local_accuracy = test_model(model, test_loader)
         log_with_time(f"Local model accuracy of client {args.rank * NUM_CLIENTS_PER_NODE + client_idx} before aggregation: {local_accuracy:.4f}")
