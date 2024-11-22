@@ -100,6 +100,7 @@ def run_commands_in_parallel(mechanism, epsilon, sparsification):
     # 生成 epsilon 参数的字符串，如果 epsilon 为 0，则为空
     epsilon_arg = f"EPSILON={epsilon}" if epsilon != 0 else ""
     sparsification_arg = f"sparsification={sparsification}" if sparsification != 0 else ""
+    print("sparsification_arg",sparsification_arg)
 
     with ThreadPoolExecutor() as executor:
         futures = []
