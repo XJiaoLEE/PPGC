@@ -140,6 +140,8 @@ class GradientCompressor:
             values = grad_np
             indices = None
 
+
+            
         # Step 2: Compress non-zero values only
         if self.compressor_instance is not None:
             values = self.compressor_instance.compress(values)
