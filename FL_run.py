@@ -23,6 +23,7 @@ parser = argparse.ArgumentParser(description='Federated Learning with mechanism 
 parser.add_argument('--mechanism', type=str, default='BASELINE', choices=['BASELINE', 'PPGC', 'QSGD', 'ONEBIT', 'RAPPOR', 'TERNGRAD'],
                     help='Choose the aggregation mechanism: "BASELINE", "PPGC", "QSGD", "ONEBIT", "RAPPOR" or "TERNGRAD"')
 parser.add_argument('--epsilon', type=float, default=0, help='Privacy budget for Differential Privacy')
+parser.add_argument('--sparsification', type=float, default=0, help='Sparsification ratio for gradient Topk sparsification')
 args = parser.parse_args()
 
 # 当前主机的 rank 和 world_size
@@ -31,7 +32,7 @@ world_size = len(nodes)
 
 # 动态命令模板，用户可以在运行时修改它，epsilon 参数会动态添加
 # command_template = "cd {remote_directory} && git pull origin main && make run_MNIST_{mechanism}_master_large world_size={world_size} rank={rank} {epsilon_arg}"
-command_template = "cd {remote_directory} && git pull origin main && make run_MNIST world_size={world_size} rank={rank} mechanism={mechanism} {epsilon_arg}"
+command_template = "cd {remote_directory} && git pull origin main && make run_MNIST world_size={world_size} rank={rank} mechanism={mechanism} {epsilon_arg} {sparsification_arg}"
 
 # 检查并杀死占用指定端口的进程
 def kill_process_on_port(port):
@@ -92,12 +93,13 @@ def ssh_execute_command(hostname, username, password, command):
         client.close()
         
 # 并行执行远程和本地命令
-def run_commands_in_parallel(mechanism, epsilon):
+def run_commands_in_parallel(mechanism, epsilon,sparsification):
     # 检查并杀死占用 20008 端口的进程
     kill_process_on_port(20008)
     
     # 生成 epsilon 参数的字符串，如果 epsilon 为 0，则为空
     epsilon_arg = f"EPSILON={epsilon}" if epsilon != 0 else ""
+    sparsification_arg = f"sparsification={sparsification}" if sparsification != 0 else ""
 
     with ThreadPoolExecutor() as executor:
         futures = []
@@ -108,7 +110,7 @@ def run_commands_in_parallel(mechanism, epsilon):
         username = rank0_credentials['user']
         password = rank0_credentials['password']
         remote_directory = rank0_credentials['remote_directory']
-        command = command_template.format(remote_directory=remote_directory, world_size=world_size, rank=rank, mechanism=mechanism, epsilon_arg=epsilon_arg)
+        command = command_template.format(remote_directory=remote_directory, world_size=world_size, rank=rank, mechanism=mechanism, epsilon_arg=epsilon_arg,sparsification_arg=sparsification_arg)
         futures.append(executor.submit(ssh_execute_command, rank0_hostname, username, password, command))
 
         # 确保 rank=0 的节点先启动一小段时间
@@ -153,7 +155,8 @@ if __name__ == "__main__":
     # else:
     mechanism = args.mechanism
     epsilon = args.epsilon
+    sparsification = args.sparsification
     # 并行执行本地和远程命令
-    run_commands_in_parallel(mechanism, epsilon)
+    run_commands_in_parallel(mechanism, epsilon, sparsification)
 
     print("Distributed Federated Learning Done。")

@@ -6,6 +6,12 @@ EPSILON ?= 0
 # 生成 epsilon 参数的字符串，如果 EPSILON 为 0，则为空
 EPSILON_ARG := $(if $(filter 0,$(EPSILON)),, --epsilon=$(EPSILON))
 
+# 定义 epsilon 变量，如果未定义则使用默认值 0
+sparsification ?= 0
+
+# 生成 epsilon 参数的字符串，如果 EPSILON 为 0，则为空
+sparsification_ARG := $(if $(filter 0,$(sparsification)),, --sparsification=$(sparsification))
+
 run_MNIST_BASELINE_master:
 	@echo "Starting master node for distributed training with $(WORLD_SIZE) nodes..."
 	python3 train/FL_MNIST.py --world_size=$(world_size) --rank=$(rank) --dist_url=tcp://192.168.1.248:20008 --mechanism=baseline --out_bits=1 $(EPSILON_ARG)
