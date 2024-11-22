@@ -9,7 +9,7 @@ from datetime import datetime
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader, random_split
 from mechanisms import RAPPORMechanism
-from Compressors import PPGC, QSGD, TernGrad, OneBit
+from Compressors import PPGC, QSGD, TernGrad, OneBit,TopK
 # from QSGD import QSGD
 # from PPGC import PPGC  # 导入 PPGC 模块
 # from ONEBIT import OneBit
@@ -52,8 +52,10 @@ parser.add_argument('--rank', type=int, required=True, help='Rank of the current
 parser.add_argument('--dist_backend', type=str, default='nccl', help='Distributed backend')
 parser.add_argument('--dist_url', type=str, default='tcp://<master_ip>:<port>', help='URL used to set up distributed training')
 parser.add_argument('--epsilon', type=float, default=0, help='Privacy budget for Differential Privacy')
+parser.add_argument('--sparsification', type=float, default=0, help='Sparsification ratio for TopK')
 args = parser.parse_args()
 epsilon = args.epsilon
+sparsification_ratio = args.sparsification
 
 # 初始化进程组
 dist.init_process_group(backend=args.dist_backend, init_method=args.dist_url, world_size=args.world_size, rank=args.rank)
@@ -109,31 +111,66 @@ def create_model():
     model = DDP(model, device_ids=[args.rank % torch.cuda.device_count()])
     return model
 
+# 客户端模型训练
+class GradientCompressor:
+    def __init__(self, mechanism, sparsification_ratio, epsilon, out_bits):
+        self.mechanism = mechanism
+        self.epsilon = epsilon
+        self.out_bits = out_bits
+        self.topk_instance = TopK(sparsification_ratio) if sparsification_ratio > 0 else None
+        self.compressor_instance = None
+        if mechanism == 'QSGD':
+            self.compressor_instance = QSGD(epsilon)
+        elif mechanism == 'PPGC':
+            self.compressor_instance = PPGC(epsilon, out_bits)
+        elif mechanism == 'ONEBIT':
+            self.compressor_instance = OneBit(epsilon)
+        elif mechanism == 'RAPPOR':
+            self.compressor_instance = RAPPORMechanism(out_bits, epsilon, out_bits)
+        elif mechanism == 'TERNGRAD':
+            self.compressor_instance = TernGrad(epsilon)
+
+    def gradient_hook(self, grad):
+        grad_np = grad.cpu().numpy()
+        
+        # Step 1: Apply sparsification if TopK is enabled
+        if self.topk_instance is not None:
+            values, indices = self.topk_instance.compress(grad_np)
+        else:
+            values = grad_np
+            indices = None
+
+        # Step 2: Compress non-zero values only
+        if self.compressor_instance is not None:
+            values = self.compressor_instance.compress(values)
+        
+        # Step 3: Reconstruct the sparse gradient (with compression applied)
+        if indices is not None:
+            grad_np = np.zeros_like(grad_np)
+            grad_np[indices] = values
+        else:
+            grad_np = values
+
+        return torch.tensor(grad_np, dtype=grad.dtype, device=grad.device)
+
+
 # 每个客户端上训练模型，并在上传前进行量化
 def train_client(global_model, rank, world_size, mechanism='BASELINE', out_bits=1):
     client_datasets, test_loader = load_data()
 
     local_models = []
+    gradient_compressor = GradientCompressor(mechanism, sparsification_ratio, epsilon, out_bits)
+
     for client_idx in range(NUM_CLIENTS_PER_NODE):
         model = create_model()
         model.load_state_dict(global_model.state_dict())  # 使用全局模型的参数作为初始参数
         model.train()
         optimizer = optim.SGD(model.parameters(), lr=LEARNING_RATE, momentum=0.9)
         criterion = nn.CrossEntropyLoss()
-        if mechanism == 'QSGD':
-            qsgd_instance = QSGD(epsilon)
-        elif mechanism == 'PPGC':
-            ppgc_instance = PPGC(epsilon, out_bits, model)  # 创建 PPGC 实例
-        elif mechanism == 'ONEBIT':
-            onebit_instance = OneBit(epsilon)
-            onebit_instance.initialize_error_feedback(model)
-        elif mechanism == 'RAPPOR':
-            rappor_instance = RAPPORMechanism(out_bits, epsilon, out_bits)  # 创建 RAPPOR 实例
-        elif mechanism == 'TERNGRAD':
-            terngrad_instance = TernGrad(epsilon)
-        # client_loader = DataLoader(client_datasets[args.rank * NUM_CLIENTS_PER_NODE:(args.rank + 1) * NUM_CLIENTS_PER_NODE], batch_size=BATCH_SIZE, shuffle=True)
         client_loader = client_datasets[args.rank * NUM_CLIENTS_PER_NODE + client_idx]
-        
+        for param in model.parameters():
+            if param.requires_grad:
+                param.register_hook(gradient_compressor.gradient_hook)
         for epoch in range(EPOCHS_PER_CLIENT):
             for step, (data, target) in enumerate(client_loader):
                 # log_with_time(f"Client {args.rank * NUM_CLIENTS_PER_NODE + client_idx}, Training step {step + 1}")
@@ -142,49 +179,7 @@ def train_client(global_model, rank, world_size, mechanism='BASELINE', out_bits=
                 output = model(data)
                 loss = criterion(output, target)
                 loss.backward()
-
-                # 根据机制对梯度进行量化
-                if mechanism == 'QSGD':
-                    for param in model.module.parameters():
-                        if param.grad is not None:
-                            quantized_gradient = qsgd_instance.quantize(param, out_bits)
-                            param.grad = torch.tensor(quantized_gradient, dtype=param.dtype).to(device)
-
-                elif mechanism == 'PPGC':
-                    for name, param in model.module.named_parameters() if hasattr(model, 'module') else model.named_parameters():
-                        if param.grad is not None:
-                            quantized_gradient = ppgc_instance.map_gradient(param)
-                            param.grad = torch.tensor(quantized_gradient, dtype=param.dtype).to(device)
-
-                elif mechanism == 'ONEBIT':
-                    for name, param in model.module.named_parameters() if hasattr(model, 'module') else model.named_parameters():
-                        if param.grad is not None:
-                            quantized_gradient = onebit_instance.apply_1bit_sgd_quantization(name, param)
-                            param.grad = torch.tensor(quantized_gradient, dtype=param.dtype).to(device)
-
-                elif mechanism == 'RAPPOR':
-                    for param in model.module.parameters():
-                        if param.grad is not None:
-                            # 将检测过的模型参数进行根据化到 [0, 1] 范围
-                            min_grad = param.grad.min().item()
-                            max_grad = param.grad.max().item()
-                            normalized_grad = (param.grad - min_grad) / (max_grad - min_grad)
-
-                            # 使用 RAPPOR 机制进行批量化
-                            perturbed_grad = rappor_instance.privatize(normalized_grad.cpu().numpy())
-                            param.grad = torch.tensor(perturbed_grad, dtype=param.grad.dtype).to(device)
-
-                            # 返回到原始范围
-                            # perturbed_grad_rescaled = torch.tensor(perturbed_grad, dtype=param.grad.dtype).to(device)
-                            # param.grad = perturbed_grad_rescaled * (max_grad - min_grad) + min_grad
-                elif mechanism == 'TERNGRAD':
-                    for param in model.module.parameters():
-                        if param.grad is not None:
-                            quantized_gradient = terngrad_instance.compress(param)
-                            param.grad = torch.tensor(quantized_gradient, dtype=param.dtype).to(device)
-
                 optimizer.step()
-                # 聚合前测试本地模型
 
         local_accuracy = test_model(model, test_loader)
         log_with_time(f"Local model accuracy of client {args.rank * NUM_CLIENTS_PER_NODE + client_idx} before aggregation: {local_accuracy:.4f}")

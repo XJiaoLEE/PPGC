@@ -147,9 +147,7 @@ class MultinomialSamplingMechanism(CompressedMechanism):
         """
         return
     
-    def privatize(self, x):
-        
-        x = x.grad.cpu().numpy()
+    def compress(self, x):
         # 将检测过的模型参数进行根据化到 [0, 1] 范围
         min_grad = x.min
         max_grad = x.max

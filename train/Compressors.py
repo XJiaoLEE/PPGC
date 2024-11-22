@@ -36,13 +36,12 @@ class PPGC:
 
         return np.array(outputs, dtype=np.float32), probabilities
 
-    def map_gradient(self, param):
-        gradient_vector = param.grad.cpu().numpy()
+    def compress(self, param):
         #gradient_vector = gradient_vector + self.error_feedback[name]
 
         # 将梯度向量展平为一维
-        original_shape = gradient_vector.shape
-        flatten_gradient_vector = gradient_vector.flatten()
+        original_shape = param.shape
+        flatten_gradient_vector = param.flatten()
 
         # 计算 L2 范数并进行归一化
         l2_norm = np.linalg.norm(flatten_gradient_vector, ord=2)
@@ -79,9 +78,7 @@ class QSGD:
         self.epsilon = epsilon
 
     # QSGD 量化函数
-    def quantize(self, x, d):
-        
-        x = x.grad.cpu().numpy()
+    def compress(self, x, d):
         """Quantize the tensor x to d levels based on absolute value coefficient-wise."""
                 # print("normalized_gradient:",normalized_gradient)
         if self.epsilon > 0:
@@ -257,39 +254,80 @@ class OneBit:
         return quantized_local_gradients
 
 
-    def apply_1bit_sgd_quantization(self, name, param):
+    def compress(self, name, param):
         # Perform local quantization with error feedback
         quantized_local_gradients = self.local_quantize(name, param)
         return quantized_local_gradients
     
 
-
-class TopK():
+class TopK:
     def __init__(self, compress_ratio):
         self.compress_ratio = compress_ratio
 
-
-    def sparsify(tensor, compress_ratio):
-        tensor = tensor.flatten()
-        k = max(1, int(tensor.numel() * compress_ratio))
-        _, indices = torch.topk(tensor.abs(), k, sorted=False,)
-        values = torch.gather(tensor, 0, indices)
+    def sparsify(self, param_np):
+        param_np = param_np.flatten()
+        k = max(1, int(param_np.size * self.compress_ratio))
+        indices = np.argpartition(np.abs(param_np), -k)[-k:]
+        values = param_np[indices]
         return values, indices
 
-
-    def desparsify(values, indices, numel):
-        tensor_decompressed = torch.zeros(numel, dtype=values.dtype, layout=values.layout, device=values.device)
-        tensor_decompressed.scatter_(0, indices, values)
+    def desparsify(self, values, indices, numel):
+        tensor_decompressed = np.zeros(numel, dtype=values.dtype)
+        tensor_decompressed[indices] = values
         return tensor_decompressed
 
-    def compress(self, tensor):
-        values, indices = self.sparsify(tensor, self.compress_ratio)
-        
-        ctx = tensor.numel(), tensor.size()
+    def compress(self, param_np):
+        values, indices = self.sparsify(param_np)
+        ctx = param_np.size, param_np.shape
         return values, indices, ctx
 
     def decompress(self, values, indices, ctx):
         """Decompress by filling empty slots with zeros and reshape back using the original shape"""
         numel, shape = ctx
         tensor_decompressed = self.desparsify(values, indices, numel)
-        return tensor_decompressed.view(shape)
+        return tensor_decompressed.reshape(shape)
+
+# class TopK():
+#     def __init__(self, compress_ratio):
+#         self.compress_ratio = compress_ratio
+
+
+#     def sparsify(tensor):
+#         tensor = tensor.flatten()
+#         k = max(1, int(tensor.numel() * self.compress_ratio))
+#         _, indices = torch.topk(tensor.abs(), k, sorted=False,)
+#         values = torch.gather(tensor, 0, indices)
+#         return values, indices
+
+
+#     def desparsify(values, indices, numel):
+#         tensor_decompressed = torch.zeros(numel, dtype=values.dtype, layout=values.layout, device=values.device)
+#         tensor_decompressed.scatter_(0, indices, values)
+#         return tensor_decompressed
+
+#     def compress(self, tensor):
+#         values, indices = self.sparsify(tensor, self.compress_ratio)
+        
+#         ctx = tensor.numel(), tensor.size()
+#         return values, indices, ctx
+
+#     def decompress(self, values, indices, ctx):
+#         """Decompress by filling empty slots with zeros and reshape back using the original shape"""
+#         numel, shape = ctx
+#         tensor_decompressed = self.desparsify(values, indices, numel)
+#         return tensor_decompressed.view(shape)
+
+
+
+q = [0, 1, 0.5, 0.2, -0.3, -0.9]
+q = np.array(q)
+# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# q = tensor = torch.tensor(q, device=device)
+terngrad_ = TopK(0.5)
+q1 , indices= terngrad_.sparsify(q)
+grad_np = np.zeros_like(q )
+grad_np[indices] = q1 
+p = terngrad_.compress(q)
+print("量化后的级别:", q1)
+print("量化后的级别:", p)
+print("量化后的级别:", grad_np)
