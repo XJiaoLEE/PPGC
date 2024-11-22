@@ -204,7 +204,7 @@ def train_client(global_model, rank, world_size, mechanism='BASELINE', out_bits=
 
 # 测试模型准确性
 def test_model(model, test_loader):
-    log_with_time("Testing model accuracy")
+    # log_with_time("Testing model accuracy")
     model.eval()
     correct = 0
     with torch.no_grad():
@@ -214,7 +214,7 @@ def test_model(model, test_loader):
             pred = output.argmax(dim=1, keepdim=True)
             correct += pred.eq(target.view_as(pred)).sum().item()
     accuracy = correct / len(test_loader.dataset)
-    log_with_time(f"Model accuracy: {accuracy:.4f}")
+    # log_with_time(f"Model accuracy: {accuracy:.4f}")
     return accuracy
 
 # 联邦学习主循环
