@@ -114,51 +114,97 @@ class QSGD:
         """Dequantize the tensor to original scale."""
         return norm * new_level / d
     
-
 class TernGrad:
     def __init__(self, epsilon):
         self.epsilon = epsilon
         return
     
-    def compress(self, tensor):
-        shape = tensor.size()
-        tensor = tensor.flatten()
-
-        # if self.epsilon > 0 :
-        #     sensitivity = tensor.max() - tensor.min()
-        #     tensor = DP.add_laplace(tensor, sensitivity, self.epsilon)
+    def compress(self, param):
+        param_np = param.grad.cpu().numpy()
+        """
+        Compresses the given NumPy array using TernGrad technique.
+        """
         if self.epsilon > 0:
-            # 将 tensor 转换为 NumPy 数组
-            tensor_np = tensor.cpu().numpy()
-            sensitivity = tensor_np.max() - tensor_np.min()
-            # 添加拉普拉斯噪声
-            tensor_np = DP.add_laplace(tensor_np, sensitivity, self.epsilon)
-            # 将添加噪声后的 NumPy 数组转换回 PyTorch 张量
-            # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-            tensor = torch.tensor(tensor_np, dtype=tensor.dtype, device=tensor.device)
+            sensitivity = param_np.max() - param_np.min()
+            param_np = DP.add_laplace(param_np, sensitivity, self.epsilon)
 
-        std = (tensor - torch.mean(tensor)) ** 2
-        std = torch.sqrt(torch.mean(std))
-        c = 2.5 * std.item()
-        gradient = torch.clamp(tensor, -c, c)
-        abs_gradient = gradient.abs()
+        # Flatten the tensor for easier processing
+        tensor = param_np.flatten()
+        
+        # Calculate standard deviation and clamp the values
+        mean = np.mean(tensor)
+        std = np.sqrt(np.mean((tensor - mean) ** 2))
+        c = 2.5 * std
+        gradient = np.clip(tensor, -c, c)
+        abs_gradient = np.abs(gradient)
         scalar = abs_gradient.max()
         
-        sign_gradient = gradient.sign() * scalar
-        rnd_sample = torch.empty_like(tensor).uniform_(0, scalar.item())
+        # Generate the sign of gradient with a random threshold for sparsification
+        sign_gradient = np.sign(gradient) * scalar
+        rnd_sample = np.random.uniform(0, scalar, size=tensor.shape)
         sign_gradient[rnd_sample >= abs_gradient] = 0
-        new_sign = sign_gradient.sign()  # -1, 0, 1
-
-        tensor_compressed = new_sign, scalar.flatten()
-        # tensor_compressed = new_sign.type(torch.int8), scalar.flatten()
-
-        return tensor_compressed, shape
+        new_sign = np.sign(sign_gradient)  # -1, 0, 1
+        return new_sign
+        # tensor_compressed = new_sign, scalar
+        # return tensor_compressed, tensor_np.shape
 
     def decompress(self, tensor_compressed, shape):
+        """
+        Decompresses the given compressed tensor to its original shape.
+        """
         tensor_compressed, scalar = tensor_compressed
-        sign = tensor_compressed.type(torch.float32)
+        sign = tensor_compressed.astype(np.float32)
         tensor_decompressed = sign * scalar
-        return tensor_decompressed.view(shape)
+        return tensor_decompressed.reshape(shape)
+
+
+
+# class TernGrad:
+#     def __init__(self, epsilon):
+#         self.epsilon = epsilon
+#         return
+    
+#     def compress(self, tensor):
+
+#         # if self.epsilon > 0 :
+#         #     sensitivity = tensor.max() - tensor.min()
+#         #     tensor = DP.add_laplace(tensor, sensitivity, self.epsilon)
+#         if self.epsilon > 0:
+#             # 将 tensor 转换为 NumPy 数组
+#             tensor_np = tensor.cpu().numpy()
+#             sensitivity = tensor_np.max() - tensor_np.min()
+#             # 添加拉普拉斯噪声
+#             tensor_np = DP.add_laplace(tensor_np, sensitivity, self.epsilon)
+#             # 将添加噪声后的 NumPy 数组转换回 PyTorch 张量
+#             # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+#             tensor = torch.tensor(tensor_np, dtype=tensor.dtype, device=tensor.device)
+
+        
+#         shape = tensor.size()
+#         tensor = tensor.flatten()
+
+#         std = (tensor - torch.mean(tensor)) ** 2
+#         std = torch.sqrt(torch.mean(std))
+#         c = 2.5 * std.item()
+#         gradient = torch.clamp(tensor, -c, c)
+#         abs_gradient = gradient.abs()
+#         scalar = abs_gradient.max()
+        
+#         sign_gradient = gradient.sign() * scalar
+#         rnd_sample = torch.empty_like(tensor).uniform_(0, scalar.item())
+#         sign_gradient[rnd_sample >= abs_gradient] = 0
+#         new_sign = sign_gradient.sign()  # -1, 0, 1
+
+#         tensor_compressed = new_sign, scalar.flatten()
+#         # tensor_compressed = new_sign.type(torch.int8), scalar.flatten()
+
+#         return tensor_compressed, shape
+
+#     def decompress(self, tensor_compressed, shape):
+#         tensor_compressed, scalar = tensor_compressed
+#         sign = tensor_compressed.type(torch.float32)
+#         tensor_decompressed = sign * scalar
+#         return tensor_decompressed.view(shape)
     
 
 class MatrixQuantizer:
