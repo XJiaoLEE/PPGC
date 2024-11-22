@@ -80,6 +80,8 @@ class QSGD:
 
     # QSGD 量化函数
     def quantize(self, x, d):
+        
+        x = x.grad.cpu().numpy()
         """Quantize the tensor x to d levels based on absolute value coefficient-wise."""
                 # print("normalized_gradient:",normalized_gradient)
         if self.epsilon > 0:

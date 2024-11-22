@@ -147,8 +147,7 @@ def train_client(global_model, rank, world_size, mechanism='BASELINE', out_bits=
                 if mechanism == 'QSGD':
                     for param in model.module.parameters():
                         if param.grad is not None:
-                            param_np = param.grad.cpu().numpy()
-                            quantized_gradient, norm = qsgd_instance.quantize(param_np, out_bits)
+                            quantized_gradient = qsgd_instance.quantize(param, out_bits)
                             # quantized_gradient = quantize(param_np, 2 ** out_bits)
                             param.grad = torch.tensor(quantized_gradient, dtype=param.dtype).to(device)
 
@@ -185,13 +184,6 @@ def train_client(global_model, rank, world_size, mechanism='BASELINE', out_bits=
                         if param.grad is not None:
                             quantized_gradient = terngrad_instance.compress(param)
                             param.grad = torch.tensor(quantized_gradient, dtype=param.dtype).to(device)
-                            # param.grad = perturbed_grad[0] if isinstance(perturbed_grad, tuple) else perturbed_grad
-                            # perturbed_grad = perturbed_grad[0] if isinstance(perturbed_grad, tuple) else perturbed_grad
-                            # param.grad = torch.from_numpy(perturbed_grad).to(dtype=param.grad.dtype, device=device)
-
-                            # param.grad = torch.from_numpy(perturbed_grad).to(dtype=param.grad.dtype, device=device)
-
-                            # param.grad = torch.tensor(perturbed_grad, dtype=param.grad.dtype).to(device)
 
                 optimizer.step()
                 # 聚合前测试本地模型
