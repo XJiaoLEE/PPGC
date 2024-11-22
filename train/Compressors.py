@@ -121,6 +121,7 @@ class TernGrad:
     
     def compress(self, param):
         param_np = param.grad.cpu().numpy()
+        shape = param_np.shape
         """
         Compresses the given NumPy array using TernGrad technique.
         """
@@ -144,7 +145,7 @@ class TernGrad:
         rnd_sample = np.random.uniform(0, scalar, size=tensor.shape)
         sign_gradient[rnd_sample >= abs_gradient] = 0
         new_sign = np.sign(sign_gradient)  # -1, 0, 1
-        return new_sign
+        return new_sign.reshape(shape)
         # tensor_compressed = new_sign, scalar
         # return tensor_compressed, tensor_np.shape
 
