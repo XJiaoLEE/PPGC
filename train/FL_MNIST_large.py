@@ -148,7 +148,7 @@ def train_client(global_model, rank, world_size, mechanism='BASELINE', out_bits=
                     for param in model.module.parameters():
                         if param.grad is not None:
                             param_np = param.grad.cpu().numpy()
-                            quantized_gradient, norm = qsgd_instance.quantize(param_np, out_bits, epsilon)
+                            quantized_gradient, norm = qsgd_instance.quantize(param_np, out_bits)
                             # quantized_gradient = quantize(param_np, 2 ** out_bits)
                             param.grad = torch.tensor(quantized_gradient, dtype=param.dtype).to(device)
 
