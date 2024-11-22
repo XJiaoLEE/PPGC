@@ -93,7 +93,7 @@ def ssh_execute_command(hostname, username, password, command):
         client.close()
         
 # 并行执行远程和本地命令
-def run_commands_in_parallel(mechanism, epsilon,sparsification):
+def run_commands_in_parallel(mechanism, epsilon, sparsification):
     # 检查并杀死占用 20008 端口的进程
     kill_process_on_port(20008)
     
@@ -126,7 +126,7 @@ def run_commands_in_parallel(mechanism, epsilon,sparsification):
             remote_directory = credentials['remote_directory']
             
             # 根据模板生成远程主机要执行的命令
-            command = command_template.format(remote_directory=remote_directory, world_size=world_size, rank=rank, mechanism=mechanism, epsilon_arg=epsilon_arg)
+            command = command_template.format(remote_directory=remote_directory, world_size=world_size, rank=rank, mechanism=mechanism, epsilon_arg=epsilon_arg, sparsification_arg=sparsification_arg)
             print("command:--", command)
 
             # 提交远程任务
