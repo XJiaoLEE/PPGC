@@ -131,9 +131,10 @@ class GradientCompressor:
             self.compressor_instance = TernGrad(epsilon)
 
     def gradient_hook(self, grad):
-        grad_np = grad.cpu().numpy()
+        grad_np1 = grad.cpu().numpy()
         
-        shape = grad_np.shape
+        shape = grad_np1.shape
+        grad_np = grad_np1.flatten()
         # Step 1: Apply sparsification if TopK is enabled
         if self.topk_instance is not None:
             values, indices = self.topk_instance.sparsify(grad_np)
@@ -151,6 +152,8 @@ class GradientCompressor:
             grad_np[indices] = values
         else:
             grad_np = values
+
+        grad_np = grad_np.reshape(shape)
 
         return torch.tensor(grad_np, dtype=grad.dtype, device=grad.device)
 
