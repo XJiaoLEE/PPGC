@@ -149,7 +149,8 @@ class TernGrad:
         sign_gradient[rnd_sample >= abs_gradient] = 0
         new_sign = sign_gradient.sign()  # -1, 0, 1
 
-        tensor_compressed = new_sign.type(torch.int8), scalar.flatten()
+        tensor_compressed = new_sign, scalar.flatten()
+        # tensor_compressed = new_sign.type(torch.int8), scalar.flatten()
 
         return tensor_compressed, shape
 
