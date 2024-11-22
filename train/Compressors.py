@@ -266,7 +266,7 @@ class TopK:
         self.compress_ratio = compress_ratio
 
     def sparsify(self, param_np):
-        param_np = param_np.flatten()
+        # param_np = param_np.flatten()
         k = max(1, int(param_np.size * self.compress_ratio))
         indices = np.argpartition(np.abs(param_np), -k)[-k:]
         values = param_np[indices]
