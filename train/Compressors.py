@@ -78,7 +78,7 @@ class QSGD:
         self.epsilon = epsilon
 
     # QSGD 量化函数
-    def compress(self, x, d):
+    def compress(self, x, d = 1):
         """Quantize the tensor x to d levels based on absolute value coefficient-wise."""
                 # print("normalized_gradient:",normalized_gradient)
         if self.epsilon > 0:
