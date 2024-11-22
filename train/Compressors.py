@@ -87,18 +87,26 @@ class QSGD:
             x = DP.add_laplace(x, sensitivity, self.epsilon)
             # normalized_gradient = DP.add_laplace(normalized_gradient, sensitivity, self.epsilon)
 
-        sign = np.sign(x).astype(np.int8)  # 保留原向量的符号信息
-        norm = np.sqrt(np.sum(np.square(x)))  # 计算原向量的 L2 范数
-        normalized_gradient = x / norm  # 计算每个元素量化后的级别（归一化幅值）
-        
-        # print("DP normalized_gradient:",normalized_gradient)
-        level_float = d * normalized_gradient
-        # level_float = d * np.abs(x) / norm  # 计算每个元素量化后的级别（归一化幅值）
+        norm = np.sqrt(np.sum(np.square(x)))
+        level_float = d * np.abs(x) / norm
         previous_level = np.floor(level_float)
         is_next_level = np.random.rand(*x.shape) < (level_float - previous_level)
         new_level = previous_level + is_next_level
-        new_level = new_level * sign  # 保留符号信息
-        return new_level.astype(np.int8), norm  # 将符号应用到 new_level 上
+        return np.sign(x) *  new_level 
+
+
+        # sign = np.sign(x).astype(np.int8)  # 保留原向量的符号信息
+        # norm = np.sqrt(np.sum(np.square(x)))  # 计算原向量的 L2 范数
+        # normalized_gradient = x / norm  # 计算每个元素量化后的级别（归一化幅值）
+        
+        # # print("DP normalized_gradient:",normalized_gradient)
+        # level_float = d * normalized_gradient
+        # # level_float = d * np.abs(x) / norm  # 计算每个元素量化后的级别（归一化幅值）
+        # previous_level = np.floor(level_float)
+        # is_next_level = np.random.rand(*x.shape) < (level_float - previous_level)
+        # new_level = previous_level + is_next_level
+        # new_level = new_level * sign  # 保留符号信息
+        # return new_level.astype(np.int8), norm  # 将符号应用到 new_level 上
 
     # 反量化函数
     def dequantize(self, new_level, norm, d):
