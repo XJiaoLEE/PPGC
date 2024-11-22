@@ -133,6 +133,7 @@ class GradientCompressor:
     def gradient_hook(self, grad):
         grad_np = grad.cpu().numpy()
         
+        shape = grad_np.shape
         # Step 1: Apply sparsification if TopK is enabled
         if self.topk_instance is not None:
             values, indices = self.topk_instance.sparsify(grad_np)
@@ -140,8 +141,6 @@ class GradientCompressor:
             values = grad_np
             indices = None
 
-
-            
         # Step 2: Compress non-zero values only
         if self.compressor_instance is not None:
             values = self.compressor_instance.compress(values)
