@@ -135,7 +135,7 @@ class GradientCompressor:
         
         # Step 1: Apply sparsification if TopK is enabled
         if self.topk_instance is not None:
-            values, indices = self.topk_instance.compress(grad_np)
+            values, indices = self.topk_instance.sparsify(grad_np)
         else:
             values = grad_np
             indices = None
