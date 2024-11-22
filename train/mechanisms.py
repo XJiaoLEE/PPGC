@@ -149,6 +149,12 @@ class MultinomialSamplingMechanism(CompressedMechanism):
     
     def privatize(self, x):
         
+        x = x.grad.cpu().numpy()
+        # 将检测过的模型参数进行根据化到 [0, 1] 范围
+        min_grad = x.min
+        max_grad = x.max
+        normalized_grad = (x - min_grad) / (max_grad - min_grad)
+        
         # 将梯度向量展平为一维
         original_shape = x.shape
         flatten_gradient_vector = x.flatten()

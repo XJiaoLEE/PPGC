@@ -9,9 +9,9 @@ class PPGC:
         self.C = float((exp(epsilon) + 1) / (exp(epsilon) - 1))
         self.qutibit = out_bits
         self.outputs, self.probabilities = self.calculate_quantization(self.qutibit)
-        self.error_feedback = {}
-        for name, param in model.module.named_parameters() if hasattr(model, 'module') else model.named_parameters():
-            self.error_feedback[name] = np.zeros(param.shape)
+        # self.error_feedback = {}
+        # for name, param in model.module.named_parameters() if hasattr(model, 'module') else model.named_parameters():
+        #     self.error_feedback[name] = np.zeros(param.shape)
 
 
     def calculate_quantization(self, qutibit):
@@ -36,7 +36,7 @@ class PPGC:
 
         return np.array(outputs, dtype=np.float32), probabilities
 
-    def map_gradient(self, name, param):
+    def map_gradient(self, param):
         gradient_vector = param.grad.cpu().numpy()
         #gradient_vector = gradient_vector + self.error_feedback[name]
 

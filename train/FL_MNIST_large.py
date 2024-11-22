@@ -25,10 +25,10 @@ print(f"Is CUDA available: {torch.cuda.is_available()}")
 print(f"CUDA version: {torch.version.cuda}")
 
 # 参数设置
-NUM_ROUNDS = 150          # 联邦学习轮数
+NUM_ROUNDS = 100          # 联邦学习轮数
 EPOCHS_PER_CLIENT = 1    # 每轮客户端本地训练次数
-BATCH_SIZE = 8          # 批大小
-LEARNING_RATE = 0.001    # 学习率
+BATCH_SIZE = 32          # 批大小
+LEARNING_RATE = 0.01    # 学习率
 epsilon = 0.0            # DP 使用的 epsilon 值
 NUM_CLIENTS_PER_NODE = 10  # 每个主机上的客户端数量
 
@@ -148,17 +148,15 @@ def train_client(global_model, rank, world_size, mechanism='BASELINE', out_bits=
                     for param in model.module.parameters():
                         if param.grad is not None:
                             quantized_gradient = qsgd_instance.quantize(param, out_bits)
-                            # quantized_gradient = quantize(param_np, 2 ** out_bits)
                             param.grad = torch.tensor(quantized_gradient, dtype=param.dtype).to(device)
 
                 elif mechanism == 'PPGC':
                     for name, param in model.module.named_parameters() if hasattr(model, 'module') else model.named_parameters():
                         if param.grad is not None:
-                            quantized_gradient = ppgc_instance.map_gradient(name, param)
+                            quantized_gradient = ppgc_instance.map_gradient(param)
                             param.grad = torch.tensor(quantized_gradient, dtype=param.dtype).to(device)
 
                 elif mechanism == 'ONEBIT':
-                    # for name, param in model.module.parameters():
                     for name, param in model.module.named_parameters() if hasattr(model, 'module') else model.named_parameters():
                         if param.grad is not None:
                             quantized_gradient = onebit_instance.apply_1bit_sgd_quantization(name, param)
