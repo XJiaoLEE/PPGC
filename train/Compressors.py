@@ -92,7 +92,7 @@ class QSGD:
         previous_level = np.floor(level_float)
         is_next_level = np.random.rand(*x.shape) < (level_float - previous_level)
         new_level = previous_level + is_next_level
-        return np.sign(x) *  new_level 
+        return np.sign(x) *  new_level , norm
 
 
         # sign = np.sign(x).astype(np.int8)  # 保留原向量的符号信息
