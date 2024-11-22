@@ -4,7 +4,7 @@ import torch
 import DPmechanisms as DP
 
 class PPGC:
-    def __init__(self, epsilon, out_bits,model):
+    def __init__(self, epsilon, out_bits):
         self.epsilon = epsilon
         self.C = float((exp(epsilon) + 1) / (exp(epsilon) - 1))
         self.qutibit = out_bits
@@ -74,11 +74,12 @@ class PPGC:
 
 
 class QSGD:
-    def __init__(self, epsilon):
+    def __init__(self, epsilon, out_bits):
         self.epsilon = epsilon
+        self.out_bits = out_bits
 
     # QSGD 量化函数
-    def compress(self, x, d = 1):
+    def compress(self, x):
         """Quantize the tensor x to d levels based on absolute value coefficient-wise."""
                 # print("normalized_gradient:",normalized_gradient)
         if self.epsilon > 0:
@@ -87,11 +88,11 @@ class QSGD:
             # normalized_gradient = DP.add_laplace(normalized_gradient, sensitivity, self.epsilon)
 
         norm = np.sqrt(np.sum(np.square(x)))
-        level_float = d * np.abs(x) / norm
+        level_float = self.out_bits * np.abs(x) / norm
         previous_level = np.floor(level_float)
         is_next_level = np.random.rand(*x.shape) < (level_float - previous_level)
         new_level = previous_level + is_next_level
-        return norm * np.sign(x) *  new_level / d
+        return norm * np.sign(x) *  new_level / self.out_bits
         # return np.sign(x) *  new_level , norm
 
 

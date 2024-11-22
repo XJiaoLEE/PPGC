@@ -120,7 +120,7 @@ class GradientCompressor:
         self.topk_instance = TopK(sparsification_ratio) if sparsification_ratio > 0 else None
         self.compressor_instance = None
         if mechanism == 'QSGD':
-            self.compressor_instance = QSGD(epsilon)
+            self.compressor_instance = QSGD(epsilon, out_bits)
         elif mechanism == 'PPGC':
             self.compressor_instance = PPGC(epsilon, out_bits)
         elif mechanism == 'ONEBIT':
