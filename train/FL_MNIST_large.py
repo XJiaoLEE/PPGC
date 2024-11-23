@@ -8,7 +8,7 @@ import numpy as np
 from datetime import datetime
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader, random_split
-from mechanisms import RAPPORMechanism
+from mechanisms import RAPPORMechanism, Laplace
 from Compressors import PPGC, QSGD, TernGrad, OneBit,TopK
 # from QSGD import QSGD
 # from PPGC import PPGC  # 导入 PPGC 模块
@@ -122,11 +122,10 @@ class GradientCompressor:
         self.out_bits = out_bits
         self.topk_instance = TopK(sparsification_ratio) if sparsification_ratio > 0 else None
         self.compressor_instance = None
-        # if mechanism == 'BASELINE':
-        #     if epsilon > 0:
-        #         self.compressor_instance = Laplace(epsilon)
-        # el
-        if mechanism == 'QSGD':
+        if self.mechanism == 'BASELINE':
+            if epsilon > 0:
+                self.compressor_instance = Laplace(epsilon)
+        elif mechanism == 'QSGD':
             self.compressor_instance = QSGD(epsilon, out_bits)
         elif mechanism == 'PPGC':
             self.compressor_instance = PPGC(epsilon, out_bits)

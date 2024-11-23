@@ -23,6 +23,7 @@ import os
 from datetime import datetime
 import pickle
 import time
+import DPmechanisms as DP
 
 
 class CompressedMechanism:
@@ -219,9 +220,12 @@ class RAPPORMechanism(MultinomialSamplingMechanism):
         return P, alpha
     
 
-# class Laplace:
-#     def __init__(self, epsilon):
-#         self.epsilon = epsilon
+class Laplace:
+    def __init__(self, epsilon):
+        self.epsilon = epsilon
 
-#     def compress(self, param_np):
-#         return
+    def compress(self, x):
+        if self.epsilon > 0:
+            sensitivity = x.max() - x.min()
+            x = DP.add_laplace(x, sensitivity, self.epsilon)
+        return x
