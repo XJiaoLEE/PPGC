@@ -222,10 +222,10 @@ class MatrixQuantizer:
         return quantized_matrix
 
 class OneBit:
-    def __init__(self, epsilon):
+    def __init__(self, epsilon, model):
         self.num_bits = 1
         self.quantizer = MatrixQuantizer(self.num_bits)
-        self.error_feedback = None  # Store error feedback for compensation
+        self.error_feedback = self.initialize_error_feedback(model)  # Store error feedback for compensation
         self.epsilon = epsilon
         
     def initialize_error_feedback(self, model):
@@ -234,25 +234,37 @@ class OneBit:
             for name, param in model.module.named_parameters() if hasattr(model, 'module') else model.named_parameters():
                 self.error_feedback[name] = np.zeros(param.shape)
 
-        
-    def local_quantize(self, name, param):
-        # Add error feedback to local gradients
-        local_gradients = param.grad.cpu().numpy()
-
-        adjusted_gradients = local_gradients + self.error_feedback[name]
-
+    def local_quantize(self, local_gradients):
         # add noise
         if self.epsilon > 0:
-            sensitivity = adjusted_gradients.max() - adjusted_gradients.min()
-            adjusted_gradients = DP.add_laplace(adjusted_gradients, sensitivity, self.epsilon)
+            sensitivity = local_gradients.max() - local_gradients.min()
+            local_gradients = DP.add_laplace(local_gradients, sensitivity, self.epsilon)
 
         # Quantize adjusted gradients
-        quantized_local_gradients = self.quantizer.quantize(adjusted_gradients)
-
-        # Calculate new error feedback
-        self.error_feedback[name] = adjusted_gradients - quantized_local_gradients
+        quantized_local_gradients = self.quantizer.quantize(local_gradients)
         
         return quantized_local_gradients
+
+
+
+    # def local_quantize(self, name, param):
+    #     # Add error feedback to local gradients
+    #     local_gradients = param.grad.cpu().numpy()
+
+    #     adjusted_gradients = local_gradients + self.error_feedback[name]
+
+    #     # add noise
+    #     if self.epsilon > 0:
+    #         sensitivity = adjusted_gradients.max() - adjusted_gradients.min()
+    #         adjusted_gradients = DP.add_laplace(adjusted_gradients, sensitivity, self.epsilon)
+
+    #     # Quantize adjusted gradients
+    #     quantized_local_gradients = self.quantizer.quantize(adjusted_gradients)
+
+    #     # Calculate new error feedback
+    #     self.error_feedback[name] = adjusted_gradients - quantized_local_gradients
+        
+    #     return quantized_local_gradients
 
 
     def compress(self, name, param):
