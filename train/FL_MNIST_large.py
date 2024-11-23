@@ -25,7 +25,7 @@ print(f"Is CUDA available: {torch.cuda.is_available()}")
 print(f"CUDA version: {torch.version.cuda}")
 
 # 参数设置
-NUM_ROUNDS = 100          # 联邦学习轮数
+NUM_ROUNDS = 120          # 联邦学习轮数
 EPOCHS_PER_CLIENT = 1    # 每轮客户端本地训练次数
 BATCH_SIZE = 32          # 批大小
 LEARNING_RATE = 0.01    # 学习率
