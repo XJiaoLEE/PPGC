@@ -218,3 +218,10 @@ class RAPPORMechanism(MultinomialSamplingMechanism):
         alpha = np.linalg.solve(P, target)
         return P, alpha
     
+
+class Laplace:
+    def __init__(self, epsilon):
+        self.epsilon = epsilon
+
+    def compress(self, param_np):
+        return
