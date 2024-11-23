@@ -27,7 +27,7 @@ print(f"CUDA version: {torch.version.cuda}")
 # 参数设置
 NUM_ROUNDS = 100          # 联邦学习轮数
 EPOCHS_PER_CLIENT = 1    # 每轮客户端本地训练次数
-BATCH_SIZE = 256          # 批大小
+BATCH_SIZE = 4          # 批大小
 LEARNING_RATE = 0.01    # 学习率
 epsilon = 0.0            # DP 使用的 epsilon 值
 NUM_CLIENTS_PER_NODE = 10  # 每个主机上的客户端数量
@@ -56,14 +56,17 @@ parser.add_argument('--sparsification', type=float, default=0, help='Sparsificat
 args = parser.parse_args()
 epsilon = args.epsilon
 sparsification_ratio = args.sparsification
-
+mechanism = args.mechanism
+if sparsification_ratio > 0:
+    if mechanism == 'BASELINE' :
+        mechanism = 'TopK'
 # 初始化进程组
 dist.init_process_group(backend=args.dist_backend, init_method=args.dist_url, world_size=args.world_size, rank=args.rank)
 
 # 创建日志文件夹和日志文件名，并重定向输出
 log_dir = "MNISTFLlogs"
 os.makedirs(log_dir, exist_ok=True)  # 如果文件夹不存在则创建
-log_filename = os.path.join(log_dir, f"MNIST_{args.mechanism}_outbits{args.out_bits}_epsilon{epsilon}_sparsification{args.sparsification}_large.log")
+log_filename = os.path.join(log_dir, f"MNIST_{mechanism}_outbits{args.out_bits}_epsilon{epsilon}_sparsification{args.sparsification}_large.log")
 sys.stdout = open(log_filename, "w")
 print(f"Logging to {log_filename}")
 
