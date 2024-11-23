@@ -222,10 +222,10 @@ class MatrixQuantizer:
         return quantized_matrix
 
 class OneBit:
-    def __init__(self, epsilon, model):
+    def __init__(self, epsilon):
         self.num_bits = 1
         self.quantizer = MatrixQuantizer(self.num_bits)
-        self.error_feedback = self.initialize_error_feedback(model)  # Store error feedback for compensation
+        self.error_feedback = None  # Store error feedback for compensation
         self.epsilon = epsilon
         
     def initialize_error_feedback(self, model):
@@ -245,7 +245,11 @@ class OneBit:
         
         return quantized_local_gradients
 
-
+    def compress(self, local_gradients):
+        # Perform local quantization with error feedback
+        quantized_local_gradients = self.local_quantize(local_gradients)
+        return quantized_local_gradients
+    
 
     # def local_quantize(self, name, param):
     #     # Add error feedback to local gradients
@@ -267,10 +271,10 @@ class OneBit:
     #     return quantized_local_gradients
 
 
-    def compress(self, name, param):
-        # Perform local quantization with error feedback
-        quantized_local_gradients = self.local_quantize(name, param)
-        return quantized_local_gradients
+    # def compress(self, name, param):
+    #     # Perform local quantization with error feedback
+    #     quantized_local_gradients = self.local_quantize(name, param)
+    #     return quantized_local_gradients
     
 
 class TopK:

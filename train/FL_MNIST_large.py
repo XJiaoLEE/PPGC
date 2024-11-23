@@ -116,7 +116,7 @@ def create_model():
 
 # 客户端模型训练
 class GradientCompressor:
-    def __init__(self, mechanism, sparsification_ratio, epsilon, out_bits, model):
+    def __init__(self, mechanism, sparsification_ratio, epsilon, out_bits):
         self.mechanism = mechanism
         self.epsilon = epsilon
         self.out_bits = out_bits
@@ -131,7 +131,7 @@ class GradientCompressor:
         elif mechanism == 'PPGC':
             self.compressor_instance = PPGC(epsilon, out_bits)
         elif mechanism == 'ONEBIT':
-            self.compressor_instance = OneBit(epsilon, model)
+            self.compressor_instance = OneBit(epsilon)
         elif mechanism == 'RAPPOR':
             self.compressor_instance = RAPPORMechanism(out_bits, epsilon, out_bits)
         elif mechanism == 'TERNGRAD':
@@ -170,7 +170,7 @@ def train_client(global_model, rank, world_size, mechanism='BASELINE', out_bits=
     client_datasets, test_loader = load_data()
 
     local_models = []
-    gradient_compressor = GradientCompressor(mechanism, sparsification_ratio, epsilon, out_bits, model)
+    gradient_compressor = GradientCompressor(mechanism, sparsification_ratio, epsilon, out_bits)
 
     # 随机选择 50% 的本地客户端
     total_local_clients = NUM_CLIENTS_PER_NODE  
