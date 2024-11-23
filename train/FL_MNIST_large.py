@@ -27,7 +27,7 @@ print(f"CUDA version: {torch.version.cuda}")
 # 参数设置
 NUM_ROUNDS = 100          # 联邦学习轮数
 EPOCHS_PER_CLIENT = 1    # 每轮客户端本地训练次数
-BATCH_SIZE = 4          # 批大小
+BATCH_SIZE = 256          # 批大小
 LEARNING_RATE = 0.01    # 学习率
 epsilon = 0.0            # DP 使用的 epsilon 值
 NUM_CLIENTS_PER_NODE = 10  # 每个主机上的客户端数量
@@ -172,7 +172,13 @@ def train_client(global_model, rank, world_size, mechanism='BASELINE', out_bits=
     local_models = []
     gradient_compressor = GradientCompressor(mechanism, sparsification_ratio, epsilon, out_bits)
 
+    # 随机选择 50% 的本地客户端
+    total_local_clients = NUM_CLIENTS_PER_NODE  
+    selected_clients = random.sample(range(total_local_clients), total_local_clients // 2)  # 随机选取一半客户端
+
     for client_idx in range(NUM_CLIENTS_PER_NODE):
+        if client_idx not in selected_clients:
+            continue  # 如果当前客户端未被选中，跳过训练
         model = create_model()
         model.load_state_dict(global_model.state_dict())  # 使用全局模型的参数作为初始参数
         model.train()
@@ -192,8 +198,8 @@ def train_client(global_model, rank, world_size, mechanism='BASELINE', out_bits=
                 loss.backward()
                 optimizer.step()
 
-        local_accuracy = test_model(model, test_loader)
-        log_with_time(f"Local model accuracy of client {args.rank * NUM_CLIENTS_PER_NODE + client_idx} before aggregation: {local_accuracy:.4f}")
+        # local_accuracy = test_model(model, test_loader)
+        # log_with_time(f"Local model accuracy of client {args.rank * NUM_CLIENTS_PER_NODE + client_idx} before aggregation: {local_accuracy:.4f}")
         local_models.append(model)
 
     # 使用一个新的临时模型汇总所有客户端的模型参数（本地聚合时取平均）
@@ -204,7 +210,7 @@ def train_client(global_model, rank, world_size, mechanism='BASELINE', out_bits=
 
         for model in local_models:
             for param_temp, param_local in zip(temp_global_model.parameters(), model.parameters()):
-                param_temp.data += param_local.data / NUM_CLIENTS_PER_NODE
+                param_temp.data += param_local.data / len(selected_clients)
 
     return temp_global_model
 
