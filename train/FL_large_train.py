@@ -125,37 +125,6 @@ def load_data():
 
         return client_loaders, DataLoader(test_dataset, batch_size=BATCH_SIZE)
 
-
-# Data loading based on dataset selection
-# def load_data():
-#     data_path = './data'
-#     if args.dataset == 'CIFAR100':
-#         transform = transforms.Compose([
-#             transforms.ToTensor(),
-#             transforms.Normalize((0.5071, 0.4867, 0.4408), (0.2675, 0.2565, 0.2761))  # CIFAR-100 mean and std
-#         ])
-#         train_dataset = datasets.CIFAR100(root=data_path, train=True, download=True, transform=transform)
-#         test_dataset = datasets.CIFAR100(root=data_path, train=False, download=True, transform=transform)
-#     elif args.dataset == 'CIFAR10':
-#         transform = transforms.Compose([
-#             transforms.ToTensor(),
-#             transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))  # CIFAR-10 mean and std
-#         ])
-#         train_dataset = datasets.CIFAR10(root=data_path, train=True, download=True, transform=transform)
-#         test_dataset = datasets.CIFAR10(root=data_path, train=False, download=True, transform=transform)
-#     else:  # MNIST
-#         transform = transforms.Compose([
-#             transforms.ToTensor(),
-#             transforms.Normalize((0.1307,), (0.3081,))  # MNIST mean and std
-#         ])
-#         train_dataset = datasets.MNIST(root=data_path, train=True, download=True, transform=transform)
-#         test_dataset = datasets.MNIST(root=data_path, train=False, download=True, transform=transform)
-
-#     client_datasets = random_split(train_dataset, [len(train_dataset) // (args.world_size * NUM_CLIENTS_PER_NODE)] * (args.world_size * NUM_CLIENTS_PER_NODE))
-#     client_datasets = [DataLoader(ds, batch_size=BATCH_SIZE, shuffle=True) for ds in client_datasets]
-
-#     return client_datasets, DataLoader(test_dataset, batch_size=BATCH_SIZE)
-
 # Define ConvNet model for MNIST
 class ConvNet(nn.Module):
     def __init__(self):
