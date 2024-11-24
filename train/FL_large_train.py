@@ -30,7 +30,7 @@ EPOCHS_PER_CLIENT = 2    # 每轮客户端本地训练次数
 BATCH_SIZE = 128          # 批大小32
 LEARNING_RATE = 0.01    # 学习率
 epsilon = 0.0            # DP 使用的 epsilon 值
-NUM_CLIENTS_PER_NODE = 5  # 每个主机上的客户端数量125
+NUM_CLIENTS_PER_NODE = 10  # 每个主机上的客户端数量125
 
 # 检测是否有可用的 GPU，如果没有则使用 CPU
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -255,8 +255,9 @@ def train_client(global_model, rank, world_size, client_datasets, mechanism='BAS
         
                 # Train the model for one epoch
         for epoch in range(EPOCHS_PER_CLIENT):
+            log_with_time(f"Client {args.rank * NUM_CLIENTS_PER_NODE + client_idx}, Training epoch {epoch + 1}")
             for step, (data, target) in enumerate(client_loader):
-                log_with_time(f"Client {args.rank * NUM_CLIENTS_PER_NODE + client_idx}, Training step {step + 1}")
+                # log_with_time(f"Client {args.rank * NUM_CLIENTS_PER_NODE + client_idx}, Training step {step + 1}")
                 data, target = data.to(device), target.to(device)
                 optimizer.zero_grad()
                 output = model(data)
@@ -270,6 +271,9 @@ def train_client(global_model, rank, world_size, client_datasets, mechanism='BAS
                     if param.requires_grad:
                         client_gradients[i] += param.grad / (len(selected_clients) * len(client_loader))
 
+        # # Collect gradients after training the client
+        # client_grad = [param.grad.clone() for param in model.parameters() if param.requires_grad]
+        # client_gradients.append(client_grad)
 
     return client_gradients
     #     # Train the model for one step
