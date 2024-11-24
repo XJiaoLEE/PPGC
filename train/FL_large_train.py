@@ -337,12 +337,14 @@ def aggregate_global_model(global_model, client_models_gradients, mechanism):
         # Directly perform all_reduce on each client's gradient to get the final global gradient
         for param_idx, param in enumerate(global_model.parameters()):
             if param.requires_grad:
+                aggregated_grad = torch.zeros_like(param.data)
                 for client_grad in client_models_gradients:
                     dist.all_reduce(client_grad[param_idx], op=dist.ReduceOp.SUM)
                     client_grad[param_idx] /= (args.world_size * len(client_models_gradients))
-                param.grad = client_grad[param_idx]
+                    aggregated_grad.add_(client_grad[param_idx])
+                param.grad = aggregated_grad
 
-        # Update global model parameters using the aggregated gradients
+        # Update global model parameters using the accumulated gradients
         for param in global_model.parameters():
             if param.requires_grad:
                 param.data -= LEARNING_RATE * param.grad
