@@ -25,8 +25,8 @@ print(f"Is CUDA available: {torch.cuda.is_available()}")
 print(f"CUDA version: {torch.version.cuda}")
 
 # 参数设置
-NUM_ROUNDS = 1200          # 联邦学习轮数
-EPOCHS_PER_CLIENT = 1    # 每轮客户端本地训练次数
+NUM_ROUNDS = 150          # 联邦学习轮数
+EPOCHS_PER_CLIENT = 2    # 每轮客户端本地训练次数
 BATCH_SIZE = 256          # 批大小32
 LEARNING_RATE = 0.01    # 学习率
 epsilon = 0.0            # DP 使用的 epsilon 值
@@ -234,28 +234,42 @@ def train_client(global_model, rank, world_size, client_datasets, mechanism='BAS
             if param.requires_grad:
                 param.register_hook(gradient_compressor.gradient_hook)
         
-        # Train the model for one step
-        for data, target in client_loader:
-            optimizer.zero_grad()
-            data, target = data.to(device), target.to(device)
-            output = model(data)
-            loss = criterion(output, target)
-            loss.backward()
-            
-            # Accumulate gradients after the step
-        if not client_gradients:
-            client_gradients = [torch.zeros_like(param.grad) for param in model.parameters() if param.requires_grad]
-        for i, param in enumerate(model.parameters()):
-            if param.requires_grad:
-                client_gradients[i] += param.grad
-            break  # Only perform one step per client per global step
-        
-        
-    # Average gradients across all clients on the same machine
-    for i in range(len(client_gradients)):
-        client_gradients[i] /= len(selected_clients)
+                # Train the model for one epoch
+        for epoch in range(EPOCHS_PER_CLIENT):
+            for step, (data, target) in enumerate(client_loader):
+                # log_with_time(f"Client {args.rank * NUM_CLIENTS_PER_NODE + client_idx}, Training step {step + 1}")
+                data, target = data.to(device), target.to(device)
+                optimizer.zero_grad()
+                output = model(data)
+                loss = criterion(output, target)
+                loss.backward()
+                
+                # Accumulate gradients after each step
+                if not client_gradients:
+                    client_gradients = [torch.zeros_like(param.grad) for param in model.parameters() if param.requires_grad]
+                for i, param in enumerate(model.parameters()):
+                    if param.requires_grad:
+                        client_gradients[i] += param.grad / (len(selected_clients) * len(client_loader))
+
 
     return client_gradients
+    #     # Train the model for one step
+    #     for data, target in client_loader:
+    #         optimizer.zero_grad()
+    #         data, target = data.to(device), target.to(device)
+    #         output = model(data)
+    #         loss = criterion(output, target)
+    #         loss.backward()
+            
+    #         # Accumulate gradients after the step
+    #     if not client_gradients:
+    #         client_gradients = [torch.zeros_like(param.grad) for param in model.parameters() if param.requires_grad]
+    #     for i, param in enumerate(model.parameters()):
+    #         if param.requires_grad:
+    #             client_gradients[i] += param.grad / len(selected_clients)
+    #         break  # Only perform one step per client per global step
+        
+    # return client_gradients
 
 # 测试模型准确性
 def test_model(model, test_loader):
