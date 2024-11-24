@@ -239,43 +239,48 @@ class GradientCompressor:
 
         return torch.tensor(grad_np, dtype=grad.dtype, device=grad.device)
 
-
-# 每个客户端上训练模型，并在上传前进行量化
+# Train client function
 def train_client(global_model, rank, world_size, client_datasets, test_loader, mechanism='BASELINE', out_bits=1):
-    # client_datasets, test_loader = load_data()
-
-    local_models = []
     gradient_compressor = GradientCompressor(mechanism, sparsification_ratio, epsilon, out_bits)
 
-    # 随机选择 50% 的本地客户端
+    # Randomly select 50% of local clients
     total_local_clients = NUM_CLIENTS_PER_NODE  
-    selected_clients = random.sample(range(total_local_clients), total_local_clients // 2)  # 随机选取一半客户端
+    selected_clients = random.sample(range(total_local_clients), total_local_clients // 2)  # Randomly select half of the clients
+
+    # Create client models only once
+    client_models = [create_model() for _ in range(NUM_CLIENTS_PER_NODE)]
+    client_gradients = []
 
     for client_idx in range(NUM_CLIENTS_PER_NODE):
         if client_idx not in selected_clients:
-            continue  # 如果当前客户端未被选中，跳过训练
-        model = create_model()
-        model.load_state_dict(global_model.state_dict())  # 使用全局模型的参数作为初始参数
+            continue  # Skip if the client is not selected
+        
+        model = client_models[client_idx]
+        model.load_state_dict(global_model.state_dict())  # Load global model's parameters as initial parameters
         model.train()
         optimizer = optim.SGD(model.parameters(), lr=LEARNING_RATE, momentum=0.9)
         criterion = nn.CrossEntropyLoss()
         client_loader = client_datasets[args.rank * NUM_CLIENTS_PER_NODE + client_idx]
+        
+        # Register gradient hook for compression
         for param in model.parameters():
             if param.requires_grad:
                 param.register_hook(gradient_compressor.gradient_hook)
+        
+        # Train the model locally
+        optimizer.zero_grad()
         for epoch in range(EPOCHS_PER_CLIENT):
             for step, (data, target) in enumerate(client_loader):
-                # log_with_time(f"Client {args.rank * NUM_CLIENTS_PER_NODE + client_idx}, Training step {step + 1}")
                 data, target = data.to(device), target.to(device)
-                optimizer.zero_grad()
                 output = model(data)
                 loss = criterion(output, target)
                 loss.backward()
-                optimizer.step()
+        
+        # Collect gradients
+        client_gradient = [param.grad.clone() for param in model.parameters() if param.requires_grad]
+        client_gradients.append(client_gradient)
 
-        # local_accuracy = test_model(model, test_loader)
-        # log_with_time(f"Local model accuracy of client {args.rank * NUM_CLIENTS_PER_NODE + client_idx} before aggregation: {local_accuracy:.4f}")
-        local_models.append(model)
+    return client_gradients
 
     # 使用一个新的临时模型汇总所有客户端的模型参数（本地聚合时取平均）
     temp_global_model = create_model()
@@ -304,36 +309,51 @@ def test_model(model, test_loader):
     # log_with_time(f"Model accuracy: {accuracy:.4f}")
     return accuracy
 
-# 联邦学习主循环
+# Federated learning function
 def federated_learning(mechanism):
-    client_loaders, test_loader = load_data()
-    # client_datasets, test_loader = load_data()
+    # Load data once before training
+    client_datasets, test_loader = load_data()
     global_model = create_model()
 
     for round in range(NUM_ROUNDS):
         log_with_time(f"Round {round + 1}/{NUM_ROUNDS} started")
 
-        client_model = train_client(global_model, args.rank, args.world_size, client_loaders, test_loader, mechanism=mechanism, out_bits=args.out_bits)
-        # client_model = train_client(global_model, args.rank, args.world_size, mechanism=mechanism, out_bits=args.out_bits)
+        # Train clients and collect their gradients
+        client_gradients = train_client(global_model, args.rank, args.world_size, client_datasets, test_loader, mechanism=mechanism, out_bits=args.out_bits)
 
-        # 聚合客户端模型参数
-        dist.barrier()  # 确保所有节点都完成训练再进行聚合
-        aggregate_global_model(global_model.module, client_model.module, mechanism)
+        # Synchronize all processes before aggregation
+        dist.barrier()
+        aggregate_global_model(global_model.module, client_gradients, mechanism)
 
-        # 聚合后测试模型
+        # Test aggregated global model
         aggregated_accuracy = test_model(global_model, test_loader)
         log_with_time(f"Global model accuracy after aggregation: {aggregated_accuracy:.4f}")
 
-# 聚合客户端模型参数
-def aggregate_global_model(global_model, client_model, mechanism):
-    log_with_time("Aggregating global model from client models")
+# Aggregate global model function
+def aggregate_global_model(global_model, client_gradients, mechanism):
+    log_with_time("Aggregating global model from client gradients")
 
-    # 遍历每个参数，通过 all_reduce 汇总每个客户端的梯度
-    for param_global, param_client in zip(global_model.parameters(), client_model.parameters()):
+    with torch.no_grad():
+        # Initialize gradients to zero
+        for param in global_model.parameters():
+            if param.requires_grad:
+                param.grad = torch.zeros_like(param.data)
 
-        param_global.data = param_client.data.clone()
-        dist.all_reduce(param_global.data, op=dist.ReduceOp.SUM)
-        param_global.data /= args.world_size  # 对参数取平均，形成全局模型
+        # Accumulate gradients from all clients
+        for gradients in client_gradients:
+            for param, grad in zip(global_model.parameters(), gradients):
+                param.grad += grad / len(client_gradients)
+
+        # Reduce across all nodes to get the final global gradients
+        for param in global_model.parameters():
+            if param.requires_grad:
+                dist.all_reduce(param.grad, op=dist.ReduceOp.SUM)
+                param.grad /= args.world_size
+
+        # Update global model parameters using the aggregated gradients
+        for param in global_model.parameters():
+            if param.requires_grad:
+                param.data -= LEARNING_RATE * param.grad
 
 # 运行联邦学习
 if __name__ == "__main__":
