@@ -101,29 +101,31 @@ def load_data():
             train_dataset = datasets.MNIST(root=data_path, train=True, download=True, transform=transform)
             test_dataset = datasets.MNIST(root=data_path, train=False, download=True, transform=transform)
 
-        # Number of clients
-        num_clients = args.world_size * NUM_CLIENTS_PER_NODE
-        num_classes = len(train_dataset.classes)
+        client_datasets = random_split(train_dataset, [len(train_dataset) // (args.world_size * NUM_CLIENTS_PER_NODE)] * (args.world_size * NUM_CLIENTS_PER_NODE))
+        client_datasets = [DataLoader(ds, batch_size=BATCH_SIZE, shuffle=True) for ds in client_datasets]
+        # # Number of clients
+        # num_clients = args.world_size * NUM_CLIENTS_PER_NODE
+        # num_classes = len(train_dataset.classes)
 
-        # Use Dirichlet distribution to assign data to clients
-        alpha = 5  # Controls the degree of non-IID 0.5
-        client_loaders = []
-        idxs_per_class = {i: np.where(np.array(train_dataset.targets) == i)[0] for i in range(num_classes)}
-        client_idxs = [[] for _ in range(num_clients)]
+        # # Use Dirichlet distribution to assign data to clients
+        # alpha = 5  # Controls the degree of non-IID 0.5
+        # client_loaders = []
+        # idxs_per_class = {i: np.where(np.array(train_dataset.targets) == i)[0] for i in range(num_classes)}
+        # client_idxs = [[] for _ in range(num_clients)]
     
-        for c, idxs in idxs_per_class.items():
-            np.random.shuffle(idxs)
-            proportions = np.random.dirichlet([alpha] * num_clients)
-            proportions = (proportions * len(idxs)).astype(int)
+        # for c, idxs in idxs_per_class.items():
+        #     np.random.shuffle(idxs)
+        #     proportions = np.random.dirichlet([alpha] * num_clients)
+        #     proportions = (proportions * len(idxs)).astype(int)
             
-            for i in range(num_clients):
-                client_idxs[i].extend(idxs[sum(proportions[:i]):sum(proportions[:i+1])])
+        #     for i in range(num_clients):
+        #         client_idxs[i].extend(idxs[sum(proportions[:i]):sum(proportions[:i+1])])
         
-        for client_data in client_idxs:
-            client_subset = torch.utils.data.Subset(train_dataset, client_data)
-            client_loaders.append(DataLoader(client_subset, batch_size=BATCH_SIZE, shuffle=True))
+        # for client_data in client_idxs:
+        #     client_subset = torch.utils.data.Subset(train_dataset, client_data)
+        #     client_loaders.append(DataLoader(client_subset, batch_size=BATCH_SIZE, shuffle=True))
 
-        return client_loaders, DataLoader(test_dataset, batch_size=BATCH_SIZE)
+        return client_datasets, DataLoader(test_dataset, batch_size=BATCH_SIZE)
 
 # Define ConvNet model for MNIST
 class ConvNet(nn.Module):
