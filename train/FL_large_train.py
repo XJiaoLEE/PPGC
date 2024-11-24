@@ -101,7 +101,7 @@ def load_data():
     num_classes = len(train_dataset.classes)
 
     # Use Dirichlet distribution to assign data to clients
-    alpha = 0.5  # Controls the degree of non-IID
+    alpha = 5  # Controls the degree of non-IID 0.5
     client_loaders = []
     idxs_per_class = {i: np.where(np.array(train_dataset.targets) == i)[0] for i in range(num_classes)}
     client_idxs = [[] for _ in range(num_clients)]
