@@ -269,11 +269,11 @@ def train_client(global_model, rank, world_size, client_datasets, mechanism='BAS
                     client_gradients = [torch.zeros_like(param.grad) for param in model.parameters() if param.requires_grad]
                 for i, param in enumerate(model.parameters()):
                     if param.requires_grad:
-                        client_gradients[i] += param.grad / (len(selected_clients) * len(client_loader))
+                        client_gradients[i] += param.grad /  len(client_loader)
 
-        # # Collect gradients after training the client
-        # client_grad = [param.grad.clone() for param in model.parameters() if param.requires_grad]
-        # client_gradients.append(client_grad)
+        # Collect gradients after training the client
+        client_grad = [param.grad.clone() for param in model.parameters() if param.requires_grad]
+        client_gradients.append(client_grad)
 
     return client_gradients
     #     # Train the model for one step
@@ -319,41 +319,34 @@ def federated_learning(mechanism):
         log_with_time(f"Round {round + 1}/{NUM_ROUNDS} started")
 
         # Train clients and collect their gradients
-        client_gradients = train_client(global_model, args.rank, args.world_size, client_datasets, args.mechanism, args.out_bits)
+        client_models_gradients = train_client(global_model, args.rank, args.world_size, client_datasets, args.mechanism, args.out_bits)
 
         # Synchronize all processes before aggregation
         dist.barrier()
-        aggregate_global_model(global_model.module, client_gradients, mechanism)
+        aggregate_global_model(global_model.module, client_models_gradients, mechanism)
 
         # Test aggregated global model
         aggregated_accuracy = test_model(global_model, test_loader)
         log_with_time(f"Global model accuracy after aggregation: {aggregated_accuracy:.4f}")
 
-# Aggregate global model function
-def aggregate_global_model(global_model, local_aggregated_gradients, mechanism):
+      
+def aggregate_global_model(global_model, client_models_gradients, mechanism):
     log_with_time("Aggregating global model from local gradients")
 
     with torch.no_grad():
-        # Initialize gradients to zero
-        for param in global_model.parameters():
+        # Directly perform all_reduce on each client's gradient to get the final global gradient
+        for param_idx, param in enumerate(global_model.parameters()):
             if param.requires_grad:
-                param.grad = torch.zeros_like(param.data)
-
-        # Accumulate local aggregated gradients
-        for param, grad in zip(global_model.parameters(), local_aggregated_gradients):
-            if param.requires_grad:
-                param.grad.copy_(grad)
-
-        # Reduce across all nodes to get the final global gradients
-        for param in global_model.parameters():
-            if param.requires_grad:
-                dist.all_reduce(param.grad, op=dist.ReduceOp.SUM)
-                param.grad /= args.world_size
+                for client_grad in client_models_gradients:
+                    dist.all_reduce(client_grad[param_idx], op=dist.ReduceOp.SUM)
+                    client_grad[param_idx] /= (args.world_size * len(client_models_gradients))
+                param.grad = client_grad[param_idx]
 
         # Update global model parameters using the aggregated gradients
         for param in global_model.parameters():
             if param.requires_grad:
                 param.data -= LEARNING_RATE * param.grad
+
 
 # 运行联邦学习
 if __name__ == "__main__":
