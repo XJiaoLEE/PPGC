@@ -111,19 +111,19 @@ def load_data():
         idxs_per_class = {i: np.where(np.array(train_dataset.targets) == i)[0] for i in range(num_classes)}
         client_idxs = [[] for _ in range(num_clients)]
     
-    for c, idxs in idxs_per_class.items():
-        np.random.shuffle(idxs)
-        proportions = np.random.dirichlet([alpha] * num_clients)
-        proportions = (proportions * len(idxs)).astype(int)
+        for c, idxs in idxs_per_class.items():
+            np.random.shuffle(idxs)
+            proportions = np.random.dirichlet([alpha] * num_clients)
+            proportions = (proportions * len(idxs)).astype(int)
+            
+            for i in range(num_clients):
+                client_idxs[i].extend(idxs[sum(proportions[:i]):sum(proportions[:i+1])])
         
-        for i in range(num_clients):
-            client_idxs[i].extend(idxs[sum(proportions[:i]):sum(proportions[:i+1])])
-    
-    for client_data in client_idxs:
-        client_subset = torch.utils.data.Subset(train_dataset, client_data)
-        client_loaders.append(DataLoader(client_subset, batch_size=BATCH_SIZE, shuffle=True))
+        for client_data in client_idxs:
+            client_subset = torch.utils.data.Subset(train_dataset, client_data)
+            client_loaders.append(DataLoader(client_subset, batch_size=BATCH_SIZE, shuffle=True))
 
-    return client_loaders, DataLoader(test_dataset, batch_size=BATCH_SIZE)
+        return client_loaders, DataLoader(test_dataset, batch_size=BATCH_SIZE)
 
 
 # Data loading based on dataset selection
@@ -241,8 +241,8 @@ class GradientCompressor:
 
 
 # 每个客户端上训练模型，并在上传前进行量化
-def train_client(global_model, rank, world_size, mechanism='BASELINE', out_bits=1):
-    client_datasets, test_loader = load_data()
+def train_client(global_model, rank, world_size, client_datasets, test_loader, mechanism='BASELINE', out_bits=1):
+    # client_datasets, test_loader = load_data()
 
     local_models = []
     gradient_compressor = GradientCompressor(mechanism, sparsification_ratio, epsilon, out_bits)
@@ -306,13 +306,15 @@ def test_model(model, test_loader):
 
 # 联邦学习主循环
 def federated_learning(mechanism):
-    client_datasets, test_loader = load_data()
+    client_loaders, test_loader = load_data()
+    # client_datasets, test_loader = load_data()
     global_model = create_model()
 
     for round in range(NUM_ROUNDS):
         log_with_time(f"Round {round + 1}/{NUM_ROUNDS} started")
 
-        client_model = train_client(global_model, args.rank, args.world_size, mechanism=mechanism, out_bits=args.out_bits)
+        client_model = train_client(global_model, args.rank, args.world_size, client_loaders, test_loader, mechanism=mechanism, out_bits=args.out_bits)
+        # client_model = train_client(global_model, args.rank, args.world_size, mechanism=mechanism, out_bits=args.out_bits)
 
         # 聚合客户端模型参数
         dist.barrier()  # 确保所有节点都完成训练再进行聚合
