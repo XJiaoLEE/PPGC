@@ -282,18 +282,6 @@ def train_client(global_model, rank, world_size, client_datasets, test_loader, m
 
     return client_gradients
 
-    # 使用一个新的临时模型汇总所有客户端的模型参数（本地聚合时取平均）
-    temp_global_model = create_model()
-    with torch.no_grad():
-        for param_temp in temp_global_model.parameters():
-            param_temp.data.zero_()
-
-        for model in local_models:
-            for param_temp, param_local in zip(temp_global_model.parameters(), model.parameters()):
-                param_temp.data += param_local.data / len(selected_clients)
-
-    return temp_global_model
-
 # 测试模型准确性
 def test_model(model, test_loader):
     # log_with_time("Testing model accuracy")
