@@ -209,21 +209,17 @@ class GradientCompressor:
         return torch.tensor(grad_np, dtype=grad.dtype, device=grad.device)
 
 # Train client function
-def train_client(global_model, rank, world_size, client_datasets, test_loader, mechanism='BASELINE', out_bits=1):
-    gradient_compressor = GradientCompressor(mechanism, sparsification_ratio, epsilon, out_bits)
-
+def train_client(global_model, rank, world_size, client_datasets, mechanism='BASELINE', out_bits=1):
     # Randomly select 50% of local clients
     total_local_clients = NUM_CLIENTS_PER_NODE  
     selected_clients = random.sample(range(total_local_clients), total_local_clients // 2)  # Randomly select half of the clients
+    gradient_compressor = GradientCompressor(mechanism, sparsification_ratio, epsilon, out_bits)
 
     # Create client models only once
     client_models = [create_model() for _ in range(NUM_CLIENTS_PER_NODE)]
     client_gradients = []
 
-    for client_idx in range(NUM_CLIENTS_PER_NODE):
-        if client_idx not in selected_clients:
-            continue  # Skip if the client is not selected
-        
+    for client_idx in selected_clients:
         model = client_models[client_idx]
         model.load_state_dict(global_model.state_dict())  # Load global model's parameters as initial parameters
         model.train()
@@ -236,18 +232,26 @@ def train_client(global_model, rank, world_size, client_datasets, test_loader, m
             if param.requires_grad:
                 param.register_hook(gradient_compressor.gradient_hook)
         
-        # Train the model locally
-        optimizer.zero_grad()
-        for epoch in range(EPOCHS_PER_CLIENT):
-            for step, (data, target) in enumerate(client_loader):
-                data, target = data.to(device), target.to(device)
-                output = model(data)
-                loss = criterion(output, target)
-                loss.backward()
+        # Train the model for one step
+        for data, target in client_loader:
+            optimizer.zero_grad()
+            data, target = data.to(device), target.to(device)
+            output = model(data)
+            loss = criterion(output, target)
+            loss.backward()
+            
+            # Accumulate gradients after the step
+        if not client_gradients:
+            client_gradients = [torch.zeros_like(param.grad) for param in model.parameters() if param.requires_grad]
+        for i, param in enumerate(model.parameters()):
+            if param.requires_grad:
+                client_gradients[i] += param.grad
+            break  # Only perform one step per client per global step
         
-        # Collect gradients
-        client_gradient = [param.grad.clone() for param in model.parameters() if param.requires_grad]
-        client_gradients.append(client_gradient)
+        
+    # Average gradients across all clients on the same machine
+    for i in range(len(client_gradients)):
+        client_gradients[i] /= len(selected_clients)
 
     return client_gradients
 
@@ -287,8 +291,8 @@ def federated_learning(mechanism):
         log_with_time(f"Global model accuracy after aggregation: {aggregated_accuracy:.4f}")
 
 # Aggregate global model function
-def aggregate_global_model(global_model, client_gradients, mechanism):
-    log_with_time("Aggregating global model from client gradients")
+def aggregate_global_model(global_model, local_aggregated_gradients, mechanism):
+    log_with_time("Aggregating global model from local gradients")
 
     with torch.no_grad():
         # Initialize gradients to zero
@@ -296,10 +300,10 @@ def aggregate_global_model(global_model, client_gradients, mechanism):
             if param.requires_grad:
                 param.grad = torch.zeros_like(param.data)
 
-        # Accumulate gradients from all clients
-        for gradients in client_gradients:
-            for param, grad in zip(global_model.parameters(), gradients):
-                param.grad += grad / len(client_gradients)
+        # Accumulate local aggregated gradients
+        for param, grad in zip(global_model.parameters(), local_aggregated_gradients):
+            if param.requires_grad:
+                param.grad.copy_(grad)
 
         # Reduce across all nodes to get the final global gradients
         for param in global_model.parameters():
