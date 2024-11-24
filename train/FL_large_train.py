@@ -339,9 +339,11 @@ def aggregate_global_model(global_model, client_models_gradients, mechanism):
             if param.requires_grad:
                 aggregated_grad = torch.zeros_like(param.data)
                 for client_grad in client_models_gradients:
-                    dist.all_reduce(client_grad[param_idx], op=dist.ReduceOp.SUM)
-                    client_grad[param_idx] /= (args.world_size * len(client_models_gradients))
-                    aggregated_grad.add_(client_grad[param_idx])
+                    # Ensure the gradients have the same shape before accumulation
+                    if client_grad[param_idx].shape == aggregated_grad.shape:
+                        dist.all_reduce(client_grad[param_idx], op=dist.ReduceOp.SUM)
+                        client_grad[param_idx] /= (args.world_size * len(client_models_gradients))
+                        aggregated_grad.add_(client_grad[param_idx])
                 param.grad = aggregated_grad
 
         # Update global model parameters using the accumulated gradients
