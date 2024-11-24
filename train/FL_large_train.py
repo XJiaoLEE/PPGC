@@ -72,39 +72,44 @@ def log_with_time(message):
     print(f"[{timestamp}] {message}")
 
 # non-iid loaddata
+# 将数据加载放在全局，只调用一次
+train_dataset, test_dataset = None, None
+
 def load_data():
-    data_path = './data'
-    if args.dataset == 'CIFAR100':
-        transform = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize((0.5071, 0.4867, 0.4408), (0.2675, 0.2565, 0.2761))  # CIFAR-100 mean and std
-        ])
-        train_dataset = datasets.CIFAR100(root=data_path, train=True, download=True, transform=transform)
-        test_dataset = datasets.CIFAR100(root=data_path, train=False, download=True, transform=transform)
-    elif args.dataset == 'CIFAR10':
-        transform = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))  # CIFAR-10 mean and std
-        ])
-        train_dataset = datasets.CIFAR10(root=data_path, train=True, download=True, transform=transform)
-        test_dataset = datasets.CIFAR10(root=data_path, train=False, download=True, transform=transform)
-    else:  # MNIST
-        transform = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize((0.1307,), (0.3081,))  # MNIST mean and std
-        ])
-        train_dataset = datasets.MNIST(root=data_path, train=True, download=True, transform=transform)
-        test_dataset = datasets.MNIST(root=data_path, train=False, download=True, transform=transform)
+    global train_dataset, test_dataset
+    if train_dataset is None or test_dataset is None:
+        data_path = './data'
+        if args.dataset == 'CIFAR100':
+            transform = transforms.Compose([
+                transforms.ToTensor(),
+                transforms.Normalize((0.5071, 0.4867, 0.4408), (0.2675, 0.2565, 0.2761))  # CIFAR-100 mean and std
+            ])
+            train_dataset = datasets.CIFAR100(root=data_path, train=True, download=True, transform=transform)
+            test_dataset = datasets.CIFAR100(root=data_path, train=False, download=True, transform=transform)
+        elif args.dataset == 'CIFAR10':
+            transform = transforms.Compose([
+                transforms.ToTensor(),
+                transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))  # CIFAR-10 mean and std
+            ])
+            train_dataset = datasets.CIFAR10(root=data_path, train=True, download=True, transform=transform)
+            test_dataset = datasets.CIFAR10(root=data_path, train=False, download=True, transform=transform)
+        else:  # MNIST
+            transform = transforms.Compose([
+                transforms.ToTensor(),
+                transforms.Normalize((0.1307,), (0.3081,))  # MNIST mean and std
+            ])
+            train_dataset = datasets.MNIST(root=data_path, train=True, download=True, transform=transform)
+            test_dataset = datasets.MNIST(root=data_path, train=False, download=True, transform=transform)
 
-    # Number of clients
-    num_clients = args.world_size * NUM_CLIENTS_PER_NODE
-    num_classes = len(train_dataset.classes)
+        # Number of clients
+        num_clients = args.world_size * NUM_CLIENTS_PER_NODE
+        num_classes = len(train_dataset.classes)
 
-    # Use Dirichlet distribution to assign data to clients
-    alpha = 5  # Controls the degree of non-IID 0.5
-    client_loaders = []
-    idxs_per_class = {i: np.where(np.array(train_dataset.targets) == i)[0] for i in range(num_classes)}
-    client_idxs = [[] for _ in range(num_clients)]
+        # Use Dirichlet distribution to assign data to clients
+        alpha = 5  # Controls the degree of non-IID 0.5
+        client_loaders = []
+        idxs_per_class = {i: np.where(np.array(train_dataset.targets) == i)[0] for i in range(num_classes)}
+        client_idxs = [[] for _ in range(num_clients)]
     
     for c, idxs in idxs_per_class.items():
         np.random.shuffle(idxs)
