@@ -26,7 +26,7 @@ print(f"CUDA version: {torch.version.cuda}")
 
 # 参数设置
 NUM_ROUNDS = 150          # 联邦学习轮数
-EPOCHS_PER_CLIENT = 10    # 每轮客户端本地训练次数
+EPOCHS_PER_CLIENT = 2    # 每轮客户端本地训练次数
 BATCH_SIZE = 128          # 批大小32
 LEARNING_RATE = 0.01    # 学习率
 epsilon = 0.0            # DP 使用的 epsilon 值
@@ -255,6 +255,7 @@ def train_client(global_model, rank, world_size, client_datasets, mechanism='BAS
         
                 # Train the model for one epoch
         for epoch in range(EPOCHS_PER_CLIENT):
+            print("epoch:",epoch)
             for step, (data, target) in enumerate(client_loader):
                 # log_with_time(f"Client {args.rank * NUM_CLIENTS_PER_NODE + client_idx}, Training step {step + 1}")
                 data, target = data.to(device), target.to(device)
