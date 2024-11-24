@@ -154,10 +154,12 @@ class ConvNet(nn.Module):
 def create_model():
     if args.dataset == 'CIFAR100':
         from torchvision.models import ResNet50_Weights
-        model = models.resnet50(weights=ResNet50_Weights.IMAGENET1K_V1, num_classes=100).to(device)
+        model = models.resnet50(weights=ResNet50_Weights.IMAGENET1K_V1).to(device)
+        model.fc = nn.Linear(model.fc.in_features, 100).to(device)
     elif args.dataset == 'CIFAR10':
         from torchvision.models import ResNet18_Weights
-        model = models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1, num_classes=10).to(device)
+        model = models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1).to(device)
+        model.fc = nn.Linear(model.fc.in_features, 10).to(device)
     else:  # MNIST
         model = ConvNet().to(device)
     model = DDP(model, device_ids=[args.rank % torch.cuda.device_count()])
