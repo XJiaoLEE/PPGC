@@ -27,7 +27,7 @@ print(f"CUDA version: {torch.version.cuda}")
 # 参数设置
 NUM_ROUNDS = 200          # 联邦学习轮数
 EPOCHS_PER_CLIENT = 2    # 每轮客户端本地训练次数 4
-BATCH_SIZE = 150          # 批大小32 300 FOR MNIST 200 FOR CIFAR100 125 FOR CIFAR10
+BATCH_SIZE = 300          # 批大小32 300 FOR MNIST 200 FOR CIFAR100 125 FOR CIFAR10
 LEARNING_RATE = 0.01    # 学习率
 epsilon = 0.0            # DP 使用的 epsilon 值
 NUM_CLIENTS_PER_NODE = 10  # 每个主机上的客户端数量125
@@ -269,7 +269,7 @@ def train_client(global_model, rank, world_size, client_datasets, mechanism='BAS
         accumulated_gradients = None
         # Train the model for one epoch
         for epoch in range(EPOCHS_PER_CLIENT):
-            log_with_time(f"Client {args.rank * NUM_CLIENTS_PER_NODE + client_idx}, Training epoch {epoch + 1}")
+            # log_with_time(f"Client {args.rank * NUM_CLIENTS_PER_NODE + client_idx}, Training epoch {epoch + 1}")
             for step, (data, target) in enumerate(client_loader):
                 # log_with_time(f"Client {args.rank * NUM_CLIENTS_PER_NODE + client_idx}, Training step {step + 1}")
                 data, target = data.to(device), target.to(device)
@@ -340,12 +340,12 @@ def test_model(model, test_loader):
 
 # Federated learning function
 def federated_learning(mechanism):
-    print(f"federated_learning started")
+    # print(f"federated_learning started")
     # Load data once before training
     client_datasets, test_loader = load_data()
-    print(f"load_data finished")
+    # print(f"load_data finished")
     global_model = create_model()
-    print(f"global_model create_model finished")
+    # print(f"global_model create_model finished")
     for round in range(NUM_ROUNDS):
         log_with_time(f"Round {round + 1}/{NUM_ROUNDS} started")
 
