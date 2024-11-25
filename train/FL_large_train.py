@@ -270,7 +270,7 @@ def train_client(global_model, rank, world_size, client_datasets, mechanism='BAS
                 for i, param in enumerate(model.parameters()):
                     if param.requires_grad:
                         client_gradients[i] += param.grad /  len(client_loader)
-                        print("gradient_shape",step, param.grad.shape)
+                        # print("gradient_shape",step, param.grad.shape)
 
         # Collect gradients after training the client
         client_grad = [param.grad.clone() for param in model.parameters() if param.requires_grad]
@@ -346,6 +346,8 @@ def aggregate_global_model(global_model, client_models_gradients, mechanism):
                         dist.all_reduce(client_grad[param_idx], op=dist.ReduceOp.SUM)
                         client_grad[param_idx] /= (args.world_size * len(client_models_gradients))
                         aggregated_grad.add_(client_grad[param_idx])
+                    else :
+                        print("unequal gradient shape",param_idx, client_grad[param_idx].shape,aggregated_grad.shape)
                 param.grad = aggregated_grad  
                 # 可能存在的问题
                 # 1、client_grad[param_idx].shape == aggregated_grad.shape导致很多梯度没有被聚合
