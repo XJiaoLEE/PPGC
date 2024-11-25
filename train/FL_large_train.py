@@ -343,6 +343,7 @@ def aggregate_global_model(global_model, client_models_gradients, mechanism):
                 for client_grad in client_models_gradients:
                     # Ensure the gradients have the same shape before accumulation
                     if client_grad[param_idx].shape == aggregated_grad.shape:
+                        print("equal gradient shape",param_idx, client_grad[param_idx].shape,aggregated_grad.shape)
                         dist.all_reduce(client_grad[param_idx], op=dist.ReduceOp.SUM)
                         client_grad[param_idx] /= (args.world_size * len(client_models_gradients))
                         aggregated_grad.add_(client_grad[param_idx])
