@@ -253,7 +253,8 @@ def train_client(global_model, rank, world_size, client_datasets, mechanism='BAS
             if param.requires_grad:
                 param.register_hook(gradient_compressor.gradient_hook)
         
-                # Train the model for one epoch
+        accumulated_gradients = None
+        # Train the model for one epoch
         for epoch in range(EPOCHS_PER_CLIENT):
             log_with_time(f"Client {args.rank * NUM_CLIENTS_PER_NODE + client_idx}, Training epoch {epoch + 1}")
             for step, (data, target) in enumerate(client_loader):
@@ -269,7 +270,7 @@ def train_client(global_model, rank, world_size, client_datasets, mechanism='BAS
                     client_gradients = [torch.zeros_like(param.grad) for param in model.parameters() if param.requires_grad]
                 for name, param in model.named_parameters():
                     if param.requires_grad:
-                        client_gradients[name] += param.grad / len(client_loader)
+                        accumulated_gradients[name] += param.grad / len(client_loader)
                         print(f"Gradient shape at step {step}: {name}, {param.grad.shape}")
                 # for i, param in enumerate(model.parameters()):
                 #     if param.requires_grad:
@@ -277,13 +278,13 @@ def train_client(global_model, rank, world_size, client_datasets, mechanism='BAS
                 #         print("gradient_shape",step, param.grad.shape)
 
         
-        client_grad = {name: param.grad.clone() for name, param in model.named_parameters() if param.requires_grad}
-        client_gradients.append(client_grad)
+        # accumulated_gradients = {name: param.grad.clone() for name, param in model.named_parameters() if param.requires_grad}
+        client_gradients.append(accumulated_gradients)
 
 
         # Collect gradients after training the client
         # client_grad = [param.grad.clone() for param in model.parameters() if param.requires_grad]
-        print("client_grad_shape",client_idx,len(client_grad))
+        print("client_grad_shape",client_idx,len(accumulated_gradients))
         # client_gradients.append(client_grad)
 
     return client_gradients
