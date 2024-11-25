@@ -284,7 +284,7 @@ def train_client(global_model, rank, world_size, client_datasets, mechanism='BAS
                 
                 for name, param in model.named_parameters():
                     if param.requires_grad:
-                        accumulated_gradients[name] += param.grad / len(client_loader)
+                        accumulated_gradients[name] += param.grad / (EPOCHS_PER_CLIENT*len(client_loader))
                         # print(f"Gradient shape at step {step}: {name}, {param.grad.shape}")
                 # for i, param in enumerate(model.parameters()):
                 #     if param.requires_grad:
