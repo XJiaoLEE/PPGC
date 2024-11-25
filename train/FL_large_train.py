@@ -10,9 +10,6 @@ from torchvision import datasets, transforms, models
 from torch.utils.data import DataLoader, random_split
 from mechanisms import RAPPORMechanism, Laplace
 from Compressors import PPGC, QSGD, TernGrad, OneBit,TopK
-# from QSGD import QSGD
-# from PPGC import PPGC  # 导入 PPGC 模块
-# from ONEBIT import OneBit
 import torch.distributed as dist
 import torch.multiprocessing as mp
 from torch.nn.parallel import DistributedDataParallel as DDP
@@ -104,7 +101,7 @@ def load_data():
             # test_dataset = datasets.CIFAR100(root=data_path, train=False, download=True, transform=transform)
         elif args.dataset == 'CIFAR10':
             transform_train = transforms.Compose([
-                transforms.RandomResizedCrop(64, scale=(0.8, 1.0)),  # 随机裁剪并调整到64x64大小
+                transforms.RandomResizedCrop(32, scale=(0.8, 1.0)),  # 随机裁剪并调整到64x64大小
                 transforms.RandomHorizontalFlip(),                    # 随机水平翻转
                 transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),  # 颜色抖动
                 transforms.ToTensor(),
@@ -113,7 +110,7 @@ def load_data():
 
             # 测试集数据预处理
             transform_test = transforms.Compose([
-                transforms.Resize((64, 64)),  # 将测试集图像调整为64x64大小
+                transforms.Resize((32, 32)),  # 将测试集图像调整为64x64大小
                 transforms.ToTensor(),
                 transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
             ])
