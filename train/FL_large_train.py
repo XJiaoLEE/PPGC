@@ -363,9 +363,9 @@ def aggregate_global_model(global_model, client_models_gradients, mechanism):
                         dist.all_reduce(client_grad[name], op=dist.ReduceOp.SUM)
                         client_grad[name] /= (args.world_size * len(client_models_gradients))
                         aggregated_grad.add_(client_grad[name])
-                    # else:
-                    #     print(f"Skipping aggregation for {name} due to shape mismatch: "
-                    #         f"{client_grad[name].shape if name in client_grad else 'not found'} vs {aggregated_grad.shape}")
+                    else:
+                        print(f"Skipping aggregation for {name} due to shape mismatch: "
+                            f"{client_grad[name].shape if name in client_grad else 'not found'} vs {aggregated_grad.shape}")
                 param.grad = aggregated_grad
 
 
