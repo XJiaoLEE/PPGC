@@ -30,7 +30,7 @@ EPOCHS_PER_CLIENT = 1    # 每轮客户端本地训练次数 4
 BATCH_SIZE = 64          # 批大小32 300 FOR MNIST 200 FOR CIFAR100 125 FOR CIFAR10
 LEARNING_RATE = 0.01    # 学习率
 epsilon = 0.0            # DP 使用的 epsilon 值
-NUM_CLIENTS_PER_NODE = 1  # 每个主机上的客户端数量125
+NUM_CLIENTS_PER_NODE = 2  # 每个主机上的客户端数量125
 
 # 检测是否有可用的 GPU，如果没有则使用 CPU
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -271,7 +271,7 @@ def train_client(global_model, rank, world_size, client_datasets, mechanism='BAS
         for epoch in range(EPOCHS_PER_CLIENT):
             log_with_time(f"Client {args.rank * NUM_CLIENTS_PER_NODE + client_idx}, Training epoch {epoch + 1}")
             for step, (data, target) in enumerate(client_loader):
-                # log_with_time(f"Client {args.rank * NUM_CLIENTS_PER_NODE + client_idx}, Training step {step + 1}")
+                log_with_time(f"Client {args.rank * NUM_CLIENTS_PER_NODE + client_idx}, Training step {step + 1}")
                 data, target = data.to(device), target.to(device)
                 optimizer.zero_grad()
                 output = model(data)
