@@ -260,7 +260,7 @@ def train_client(global_model, rank, world_size, client_datasets, mechanism='BAS
                 for name, param in model.named_parameters():
                     if param.requires_grad:
                         accumulated_gradients[name] += param.grad / len(client_loader)
-                        print(f"Gradient shape at step {step}: {name}, {param.grad.shape}")
+                        # print(f"Gradient shape at step {step}: {name}, {param.grad.shape}")
                 # for i, param in enumerate(model.parameters()):
                 #     if param.requires_grad:
                 #         client_gradients[i] += param.grad /  len(client_loader)
@@ -344,8 +344,8 @@ def aggregate_global_model(global_model, client_models_gradients, mechanism):
                     # 使用添加 'module.' 前缀的名称来匹配
                     grad_name = "module." + name
                     if grad_name in client_grad and client_grad[grad_name].shape == aggregated_grad.shape:
-                        print(f"Matching aggregation for {name} : "
-                            f"{client_grad[name].shape if name in client_grad else 'not found'} vs {aggregated_grad.shape}")
+                        # print(f"Matching aggregation for {name} : "
+                        #     f"{client_grad[name].shape if name in client_grad else 'not found'} vs {aggregated_grad.shape}")
                         dist.all_reduce(client_grad[grad_name], op=dist.ReduceOp.SUM)
                         client_grad[grad_name] /= (args.world_size * len(client_models_gradients))
                         aggregated_grad.add_(client_grad[grad_name])
