@@ -80,12 +80,28 @@ def load_data():
     if train_dataset is None or test_dataset is None:
         data_path = './data'
         if args.dataset == 'CIFAR100':
-            transform = transforms.Compose([
+            transform_train = transforms.Compose([
+                transforms.RandomResizedCrop(224, scale=(0.8, 1.0)),  # 随机裁剪并调整到224x224大小
+                transforms.RandomHorizontalFlip(),                    # 随机水平翻转
+                transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),  # 颜色抖动
                 transforms.ToTensor(),
-                transforms.Normalize((0.5071, 0.4867, 0.4408), (0.2675, 0.2565, 0.2761))  # CIFAR-100 mean and std
+                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # 使用ImageNet的均值和标准差
             ])
-            train_dataset = datasets.CIFAR100(root=data_path, train=True, download=True, transform=transform)
-            test_dataset = datasets.CIFAR100(root=data_path, train=False, download=True, transform=transform)
+            transform_test = transforms.Compose([
+                transforms.Resize((224, 224)),  # 将测试集图像调整为224x224大小
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+            ])
+
+            train_dataset = datasets.CIFAR100(root=data_path, train=True, download=True, transform=transform_train)
+            test_dataset = datasets.CIFAR100(root=data_path, train=False, download=True, transform=transform_test)
+
+            # transform = transforms.Compose([
+            #     transforms.ToTensor(),
+            #     transforms.Normalize((0.5071, 0.4867, 0.4408), (0.2675, 0.2565, 0.2761))  # CIFAR-100 mean and std
+            # ])
+            # train_dataset = datasets.CIFAR100(root=data_path, train=True, download=True, transform=transform)
+            # test_dataset = datasets.CIFAR100(root=data_path, train=False, download=True, transform=transform)
         elif args.dataset == 'CIFAR10':
             transform = transforms.Compose([
                 transforms.ToTensor(),
