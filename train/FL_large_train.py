@@ -272,10 +272,14 @@ def train_client(global_model, rank, world_size, client_datasets, mechanism='BAS
                         client_gradients[i] += param.grad /  len(client_loader)
                         print("gradient_shape",step, param.grad.shape)
 
-        # Collect gradients after training the client
-        client_grad = [param.grad.clone() for param in model.parameters() if param.requires_grad]
-        print("client_grad_shape",client_idx,len(client_grad))
+        
+        client_grad = {name: param.grad.clone() for name, param in model.named_parameters() if param.requires_grad}
         client_gradients.append(client_grad)
+
+        # Collect gradients after training the client
+        # client_grad = [param.grad.clone() for param in model.parameters() if param.requires_grad]
+        print("client_grad_shape",client_idx,len(client_grad))
+        # client_gradients.append(client_grad)
 
     return client_gradients
     #     # Train the model for one step
@@ -336,20 +340,37 @@ def aggregate_global_model(global_model, client_models_gradients, mechanism):
     log_with_time("Aggregating global model from local gradients")
 
     with torch.no_grad():
-        # Directly perform all_reduce on each client's gradient to get the final global gradient
-        for param_idx, param in enumerate(global_model.parameters()):
+    # Collect gradients by named parameter to ensure consistency
+        named_parameters = list(global_model.named_parameters())
+        for param_idx, (name, param) in enumerate(named_parameters):
             if param.requires_grad:
                 aggregated_grad = torch.zeros_like(param.data)
                 for client_grad in client_models_gradients:
-                    # Ensure the gradients have the same shape before accumulation
-                    if client_grad[param_idx].shape == aggregated_grad.shape:
-                        print("equal gradient shape",param_idx, client_grad[param_idx].shape,aggregated_grad.shape)
-                        dist.all_reduce(client_grad[param_idx], op=dist.ReduceOp.SUM)
-                        client_grad[param_idx] /= (args.world_size * len(client_models_gradients))
-                        aggregated_grad.add_(client_grad[param_idx])
-                    else :
-                        print("unequal gradient shape",param_idx, client_grad[param_idx].shape,aggregated_grad.shape)
-                param.grad = aggregated_grad  
+                    # Assuming client_grad is now a dictionary keyed by parameter names
+                    if name in client_grad and client_grad[name].shape == aggregated_grad.shape:
+                        dist.all_reduce(client_grad[name], op=dist.ReduceOp.SUM)
+                        client_grad[name] /= (args.world_size * len(client_models_gradients))
+                        aggregated_grad.add_(client_grad[name])
+                    else:
+                        print(f"Skipping aggregation for {name} due to shape mismatch: "
+                            f"{client_grad[name].shape} vs {aggregated_grad.shape}")
+                param.grad = aggregated_grad
+
+    # with torch.no_grad():
+    #     # Directly perform all_reduce on each client's gradient to get the final global gradient
+    #     for param_idx, param in enumerate(global_model.parameters()):
+    #         if param.requires_grad:
+    #             aggregated_grad = torch.zeros_like(param.data)
+    #             for client_grad in client_models_gradients:
+    #                 # Ensure the gradients have the same shape before accumulation
+    #                 if client_grad[param_idx].shape == aggregated_grad.shape:
+    #                     print("equal gradient shape",param_idx, client_grad[param_idx].shape,aggregated_grad.shape)
+    #                     dist.all_reduce(client_grad[param_idx], op=dist.ReduceOp.SUM)
+    #                     client_grad[param_idx] /= (args.world_size * len(client_models_gradients))
+    #                     aggregated_grad.add_(client_grad[param_idx])
+    #                 else :
+    #                     print("unequal gradient shape",param_idx, client_grad[param_idx].shape,aggregated_grad.shape)
+    #             param.grad = aggregated_grad  
                 # 可能存在的问题
                 # 1、client_grad[param_idx].shape == aggregated_grad.shape导致很多梯度没有被聚合
                 # 2、client_grad[param_idx] /= (args.world_size * len(client_models_gradients))可能并没有把所有客户端的都加上，然后又除的太多，导致梯度变化太小
