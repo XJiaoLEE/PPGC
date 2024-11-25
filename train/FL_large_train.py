@@ -26,7 +26,7 @@ print(f"CUDA version: {torch.version.cuda}")
 
 # 参数设置
 NUM_ROUNDS = 200          # 联邦学习轮数
-EPOCHS_PER_CLIENT = 2    # 每轮客户端本地训练次数
+EPOCHS_PER_CLIENT = 4    # 每轮客户端本地训练次数
 BATCH_SIZE = 250          # 批大小32
 LEARNING_RATE = 0.01    # 学习率
 epsilon = 0.0            # DP 使用的 epsilon 值
@@ -164,21 +164,6 @@ def create_model():
         model = ConvNet().to(device)
     model = DDP(model, device_ids=[args.rank % torch.cuda.device_count()])
     return model
-# def create_model():
-#     if args.dataset == 'CIFAR100':
-#         model = models.resnet50(pretrained=True)  # 使用预训练的 ResNet-50
-#         model.fc = nn.Linear(model.fc.in_features, 100)  # 修改最后一层
-#         model = model.to(device)
-#         # model = models.resnet50(num_classes=100).to(device)
-#     elif args.dataset == 'CIFAR10':
-#         model = models.resnet18(pretrained=True)
-#         model.fc = nn.Linear(model.fc.in_features, 10)  # 修改最后一层
-#         model = model.to(device)
-#         # model = models.resnet18(num_classes=10).to(device)
-#     else:  # MNIST
-#         model = ConvNet().to(device)
-#     model = DDP(model, device_ids=[args.rank % torch.cuda.device_count()])
-#     return model
 
 # 客户端模型训练
 class GradientCompressor:
