@@ -270,7 +270,7 @@ def train_client(global_model, rank, world_size, client_datasets, mechanism='BAS
                 for i, param in enumerate(model.parameters()):
                     if param.requires_grad:
                         client_gradients[i] += param.grad /  len(client_loader)
-                        # print("gradient_shape",step, param.grad.shape)
+                        print("gradient_shape",step, param.grad.shape)
 
         # Collect gradients after training the client
         client_grad = [param.grad.clone() for param in model.parameters() if param.requires_grad]
