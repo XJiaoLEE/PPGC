@@ -33,7 +33,7 @@ world_size = len(nodes)
 
 # 动态命令模板，用户可以在运行时修改它，epsilon 参数会动态添加
 # command_template = "cd {remote_directory} && git pull origin main && make run_MNIST_{mechanism}_master_large world_size={world_size} rank={rank} {epsilon_arg}"
-command_template = "cd {remote_directory} && cp /home/dddddddd/SparseML/src/data/cifar10/* data/ && git pull origin main && make run_large world_size={world_size} rank={rank} mechanism={mechanism} {epsilon_arg} {sparsification_arg} dataset={dataset}"
+command_template = "cd {remote_directory} && cp -r /home/dddddddd/SparseML/src/data/cifar10/* data/ && git pull origin main && make run_large world_size={world_size} rank={rank} mechanism={mechanism} {epsilon_arg} {sparsification_arg} dataset={dataset}"
 
 # 检查并杀死占用指定端口的进程
 def kill_process_on_port(port):
