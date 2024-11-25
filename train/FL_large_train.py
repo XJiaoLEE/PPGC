@@ -276,6 +276,7 @@ def train_client(global_model, rank, world_size, client_datasets, mechanism='BAS
         client_grad = {name: param.grad.clone() for name, param in model.named_parameters() if param.requires_grad}
         client_gradients.append(client_grad)
 
+
         # Collect gradients after training the client
         # client_grad = [param.grad.clone() for param in model.parameters() if param.requires_grad]
         print("client_grad_shape",client_idx,len(client_grad))
@@ -340,7 +341,7 @@ def aggregate_global_model(global_model, client_models_gradients, mechanism):
     log_with_time("Aggregating global model from local gradients")
 
     with torch.no_grad():
-    # Collect gradients by named parameter to ensure consistency
+        # Collect gradients by named parameter to ensure consistency
         named_parameters = list(global_model.named_parameters())
         for param_idx, (name, param) in enumerate(named_parameters):
             if param.requires_grad:
@@ -353,8 +354,9 @@ def aggregate_global_model(global_model, client_models_gradients, mechanism):
                         aggregated_grad.add_(client_grad[name])
                     else:
                         print(f"Skipping aggregation for {name} due to shape mismatch: "
-                            f"{client_grad[name].shape} vs {aggregated_grad.shape}")
+                            f"{client_grad[name].shape if name in client_grad else 'not found'} vs {aggregated_grad.shape}")
                 param.grad = aggregated_grad
+
 
     # with torch.no_grad():
     #     # Directly perform all_reduce on each client's gradient to get the final global gradient
