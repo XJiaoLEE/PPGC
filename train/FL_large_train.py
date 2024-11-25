@@ -27,7 +27,7 @@ print(f"CUDA version: {torch.version.cuda}")
 # 参数设置
 NUM_ROUNDS = 150          # 联邦学习轮数
 EPOCHS_PER_CLIENT = 2    # 每轮客户端本地训练次数
-BATCH_SIZE = 256          # 批大小32
+BATCH_SIZE = 250          # 批大小32
 LEARNING_RATE = 0.01    # 学习率
 epsilon = 0.0            # DP 使用的 epsilon 值
 NUM_CLIENTS_PER_NODE = 10  # 每个主机上的客户端数量125
@@ -102,7 +102,7 @@ def load_data():
             test_dataset = datasets.MNIST(root=data_path, train=False, download=True, transform=transform)
 
         client_datasets = random_split(train_dataset, [len(train_dataset) // (args.world_size * NUM_CLIENTS_PER_NODE)] * (args.world_size * NUM_CLIENTS_PER_NODE))
-        client_datasets = [DataLoader(ds, batch_size=BATCH_SIZE, shuffle=True) for ds in client_datasets]
+        client_datasets = [DataLoader(ds, batch_size=BATCH_SIZE, shuffle=True, drop_last=True) for ds in client_datasets]
         # # Number of clients
         # num_clients = args.world_size * NUM_CLIENTS_PER_NODE
         # num_classes = len(train_dataset.classes)
@@ -340,11 +340,14 @@ def aggregate_global_model(global_model, client_models_gradients, mechanism):
                 aggregated_grad = torch.zeros_like(param.data)
                 for client_grad in client_models_gradients:
                     # Ensure the gradients have the same shape before accumulation
-                    if client_grad[param_idx].shape == aggregated_grad.shape:
-                        dist.all_reduce(client_grad[param_idx], op=dist.ReduceOp.SUM)
-                        client_grad[param_idx] /= (args.world_size * len(client_models_gradients))
-                        aggregated_grad.add_(client_grad[param_idx])
-                param.grad = aggregated_grad
+                    # if client_grad[param_idx].shape == aggregated_grad.shape:
+                    dist.all_reduce(client_grad[param_idx], op=dist.ReduceOp.SUM)
+                    client_grad[param_idx] /= (args.world_size * len(client_models_gradients))
+                    aggregated_grad.add_(client_grad[param_idx])
+                param.grad = aggregated_grad  
+                # 可能存在的问题
+                # 1、client_grad[param_idx].shape == aggregated_grad.shape导致很多梯度没有被聚合
+                # 2、client_grad[param_idx] /= (args.world_size * len(client_models_gradients))可能并没有把所有客户端的都加上，然后又除的太多，导致梯度变化太小
 
         # Update global model parameters using the accumulated gradients
         for param in global_model.parameters():
