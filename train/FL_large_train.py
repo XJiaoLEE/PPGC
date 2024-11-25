@@ -352,23 +352,37 @@ def aggregate_global_model(global_model, client_models_gradients, mechanism):
     with torch.no_grad():
         # Collect gradients by named parameter to ensure consistency
         named_parameters = list(global_model.named_parameters())
-        for param_idx, (name, param) in enumerate(named_parameters):
+        for name, param in global_model.named_parameters():
             if param.requires_grad:
                 aggregated_grad = torch.zeros_like(param.data)
                 for client_grad in client_models_gradients:
-                    # Assuming client_grad is now a dictionary keyed by parameter names
-                    if name in client_grad and client_grad[name].shape == aggregated_grad.shape:
+                    # 使用添加 'module.' 前缀的名称来匹配
+                    grad_name = "module." + name
+                    if grad_name in client_grad and client_grad[grad_name].shape == aggregated_grad.shape:
                         print(f"Matching aggregation for {name} : "
                             f"{client_grad[name].shape if name in client_grad else 'not found'} vs {aggregated_grad.shape}")
-                        dist.all_reduce(client_grad[name], op=dist.ReduceOp.SUM)
-                        client_grad[name] /= (args.world_size * len(client_models_gradients))
-                        aggregated_grad.add_(client_grad[name])
+                        dist.all_reduce(client_grad[grad_name], op=dist.ReduceOp.SUM)
+                        client_grad[grad_name] /= (args.world_size * len(client_models_gradients))
+                        aggregated_grad.add_(client_grad[grad_name])
                     else:
                         print(f"Skipping aggregation for {name} due to shape mismatch: "
                             f"{client_grad[name].shape if name in client_grad else 'not found'} vs {aggregated_grad.shape}")
                 param.grad = aggregated_grad
-
-
+        # for param_idx, (name, param) in enumerate(named_parameters):
+        #     if param.requires_grad:
+        #         aggregated_grad = torch.zeros_like(param.data)
+        #         for client_grad in client_models_gradients:
+        #             # Assuming client_grad is now a dictionary keyed by parameter names
+        #             if name in client_grad and client_grad[name].shape == aggregated_grad.shape:
+        #                 print(f"Matching aggregation for {name} : "
+        #                     f"{client_grad[name].shape if name in client_grad else 'not found'} vs {aggregated_grad.shape}")
+        #                 dist.all_reduce(client_grad[name], op=dist.ReduceOp.SUM)
+        #                 client_grad[name] /= (args.world_size * len(client_models_gradients))
+        #                 aggregated_grad.add_(client_grad[name])
+        #             else:
+        #                 print(f"Skipping aggregation for {name} due to shape mismatch: "
+        #                     f"{client_grad[name].shape if name in client_grad else 'not found'} vs {aggregated_grad.shape}")
+        #         param.grad = aggregated_grad
     # with torch.no_grad():
     #     # Directly perform all_reduce on each client's gradient to get the final global gradient
     #     for param_idx, param in enumerate(global_model.parameters()):
