@@ -340,10 +340,10 @@ def aggregate_global_model(global_model, client_models_gradients, mechanism):
                 aggregated_grad = torch.zeros_like(param.data)
                 for client_grad in client_models_gradients:
                     # Ensure the gradients have the same shape before accumulation
-                    # if client_grad[param_idx].shape == aggregated_grad.shape:
-                    dist.all_reduce(client_grad[param_idx], op=dist.ReduceOp.SUM)
-                    client_grad[param_idx] /= (args.world_size * len(client_models_gradients))
-                    aggregated_grad.add_(client_grad[param_idx])
+                    if client_grad[param_idx].shape == aggregated_grad.shape:
+                        dist.all_reduce(client_grad[param_idx], op=dist.ReduceOp.SUM)
+                        client_grad[param_idx] /= (args.world_size * len(client_models_gradients))
+                        aggregated_grad.add_(client_grad[param_idx])
                 param.grad = aggregated_grad  
                 # 可能存在的问题
                 # 1、client_grad[param_idx].shape == aggregated_grad.shape导致很多梯度没有被聚合
