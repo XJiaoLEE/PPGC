@@ -266,8 +266,12 @@ def train_client(global_model, rank, world_size, client_datasets, mechanism='BAS
                 loss.backward()
                 
                 # Accumulate gradients after each step
-                if not client_gradients:
-                    client_gradients = [torch.zeros_like(param.grad) for param in model.parameters() if param.requires_grad]
+                # if not client_gradients:
+                #     client_gradients = [torch.zeros_like(param.grad) for param in model.parameters() if param.requires_grad]
+                # Accumulate gradients after each step
+                if accumulated_gradients is None:
+                    accumulated_gradients = {name: torch.zeros_like(param.grad) for name, param in model.named_parameters() if param.requires_grad}
+                
                 for name, param in model.named_parameters():
                     if param.requires_grad:
                         accumulated_gradients[name] += param.grad / len(client_loader)
