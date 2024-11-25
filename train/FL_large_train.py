@@ -26,11 +26,11 @@ print(f"CUDA version: {torch.version.cuda}")
 
 # 参数设置
 NUM_ROUNDS = 200          # 联邦学习轮数
-EPOCHS_PER_CLIENT = 1    # 每轮客户端本地训练次数 4
-BATCH_SIZE = 64          # 批大小32 300 FOR MNIST 200 FOR CIFAR100 125 FOR CIFAR10
+EPOCHS_PER_CLIENT = 2    # 每轮客户端本地训练次数 4
+BATCH_SIZE = 125          # 批大小32 300 FOR MNIST 200 FOR CIFAR100 125 FOR CIFAR10
 LEARNING_RATE = 0.01    # 学习率
 epsilon = 0.0            # DP 使用的 epsilon 值
-NUM_CLIENTS_PER_NODE = 2  # 每个主机上的客户端数量125
+NUM_CLIENTS_PER_NODE = 10  # 每个主机上的客户端数量125
 
 # 检测是否有可用的 GPU，如果没有则使用 CPU
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -81,14 +81,14 @@ def load_data():
         data_path = './data'
         if args.dataset == 'CIFAR100':
             transform_train = transforms.Compose([
-                transforms.RandomResizedCrop(224, scale=(0.8, 1.0)),  # 随机裁剪并调整到224x224大小
+                transforms.RandomResizedCrop(64, scale=(0.8, 1.0)),  # 随机裁剪并调整到64x64大小
                 transforms.RandomHorizontalFlip(),                    # 随机水平翻转
                 transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),  # 颜色抖动
                 transforms.ToTensor(),
                 transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # 使用ImageNet的均值和标准差
             ])
             transform_test = transforms.Compose([
-                transforms.Resize((224, 224)),  # 将测试集图像调整为224x224大小
+                transforms.Resize((64, 64)),  # 将测试集图像调整为64x64大小
                 transforms.ToTensor(),
                 transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
             ])
@@ -104,7 +104,7 @@ def load_data():
             # test_dataset = datasets.CIFAR100(root=data_path, train=False, download=True, transform=transform)
         elif args.dataset == 'CIFAR10':
             transform_train = transforms.Compose([
-                transforms.RandomResizedCrop(224, scale=(0.8, 1.0)),  # 随机裁剪并调整到224x224大小
+                transforms.RandomResizedCrop(64, scale=(0.8, 1.0)),  # 随机裁剪并调整到64x64大小
                 transforms.RandomHorizontalFlip(),                    # 随机水平翻转
                 transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),  # 颜色抖动
                 transforms.ToTensor(),
@@ -113,7 +113,7 @@ def load_data():
 
             # 测试集数据预处理
             transform_test = transforms.Compose([
-                transforms.Resize((224, 224)),  # 将测试集图像调整为224x224大小
+                transforms.Resize((64, 64)),  # 将测试集图像调整为64x64大小
                 transforms.ToTensor(),
                 transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
             ])
@@ -340,10 +340,12 @@ def test_model(model, test_loader):
 
 # Federated learning function
 def federated_learning(mechanism):
+    print(f"federated_learning started")
     # Load data once before training
     client_datasets, test_loader = load_data()
+    print(f"load_data finished")
     global_model = create_model()
-
+    print(f"global_model create_model finished")
     for round in range(NUM_ROUNDS):
         log_with_time(f"Round {round + 1}/{NUM_ROUNDS} started")
 
