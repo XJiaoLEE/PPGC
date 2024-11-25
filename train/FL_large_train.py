@@ -25,7 +25,7 @@ print(f"Is CUDA available: {torch.cuda.is_available()}")
 print(f"CUDA version: {torch.version.cuda}")
 
 # 参数设置
-NUM_ROUNDS = 150          # 联邦学习轮数
+NUM_ROUNDS = 2          # 联邦学习轮数
 EPOCHS_PER_CLIENT = 2    # 每轮客户端本地训练次数
 BATCH_SIZE = 250          # 批大小32
 LEARNING_RATE = 0.01    # 学习率
@@ -273,6 +273,7 @@ def train_client(global_model, rank, world_size, client_datasets, mechanism='BAS
 
         # Collect gradients after training the client
         client_grad = [param.grad.clone() for param in model.parameters() if param.requires_grad]
+        print("client_grad_shape",client_idx,client_grad.shape)
         client_gradients.append(client_grad)
 
     return client_gradients
