@@ -43,11 +43,17 @@ class PPGC:
         original_shape = param.shape
         flatten_gradient_vector = param.flatten()
 
-        # 计算 L2 范数并进行归一化
-        l2_norm = np.linalg.norm(flatten_gradient_vector, ord=2)
-        if l2_norm == 0:  # 避免除以零
-            l2_norm = 1.0
-        normalized_gradient_vector = flatten_gradient_vector / l2_norm
+        # 计算梯度绝对值的最大值并进行归一化
+        max_abs_value = np.max(np.abs(flatten_gradient_vector))
+        if max_abs_value == 0:  # 避免除以零
+            max_abs_value = 1.0
+        normalized_gradient_vector = flatten_gradient_vector / max_abs_value
+
+        # # 计算 L2 范数并进行归一化
+        # l2_norm = np.linalg.norm(flatten_gradient_vector, ord=2)
+        # if l2_norm == 0:  # 避免除以零
+        #     l2_norm = 1.0
+        # normalized_gradient_vector = flatten_gradient_vector / l2_norm
 
         # 优化的量化过程
         quantized_gradient = np.zeros_like(normalized_gradient_vector, dtype=np.float32)
