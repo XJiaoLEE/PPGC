@@ -60,7 +60,7 @@ if epsilon > 0 :
 dist.init_process_group(backend=args.dist_backend, init_method=args.dist_url, world_size=args.world_size, rank=args.rank)
 
 # Create log directory and log filename, and redirect output
-log_dir = "FLlogs"
+log_dir = "FLlogs_afsub"
 os.makedirs(log_dir, exist_ok=True)
 log_filename = os.path.join(log_dir, f"{args.dataset}_{mechanism}_outbits{args.out_bits}_epsilon{epsilon}_sparsification{args.sparsification}_large.log")
 sys.stdout = open(log_filename, "w")
