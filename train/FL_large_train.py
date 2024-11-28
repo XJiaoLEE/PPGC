@@ -246,7 +246,7 @@ class GradientCompressor:
 def train_client(global_model, rank, world_size, client_datasets, mechanism='BASELINE', out_bits=1):
     # Randomly select 50% of local clients
     total_local_clients = NUM_CLIENTS_PER_NODE  
-    selected_clients = random.sample(range(total_local_clients), total_local_clients // 10)  # Randomly select half of the clients
+    selected_clients = random.sample(range(total_local_clients), total_local_clients // 20)  # Randomly select half of the clients
     gradient_compressor = GradientCompressor(mechanism, sparsification_ratio, epsilon, out_bits)
 
     # Create client models only once
