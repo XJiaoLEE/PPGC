@@ -9,10 +9,10 @@ import argparse
 
 # 节点信息，包括远程主机的IP地址、用户名、密码和用户的XXXXX/PPGC目录
 nodes = {
-    # "192.168.1.154": {"user": "d", "password": "d", "remote_directory": "/home/d/XXXXX/PPGC"},
-    # "192.168.1.169": {"user": "dd", "password": "dd", "remote_directory": "/home/dd/XXXXX/PPGC"},
-    # "192.168.1.157": {"user": "ddd", "password": "ddd", "remote_directory": "/home/ddd/XXXXX/PPGC"},
-    # "192.168.1.108": {"user": "dddd", "password": "dddd", "remote_directory": "/home/dddd/XXXXX/PPGC"},
+    "192.168.1.154": {"user": "d", "password": "d", "remote_directory": "/home/d/XXXXX/PPGC"},
+    "192.168.1.169": {"user": "dd", "password": "dd", "remote_directory": "/home/dd/XXXXX/PPGC"},
+    "192.168.1.157": {"user": "ddd", "password": "ddd", "remote_directory": "/home/ddd/XXXXX/PPGC"},
+    "192.168.1.108": {"user": "dddd", "password": "dddd", "remote_directory": "/home/dddd/XXXXX/PPGC"},
     "192.168.1.107": {"user": "ddddd", "password": "ddddd", "remote_directory": "/home/ddddd/XXXXX/PPGC"},
     "192.168.1.232": {"user": "dddddd", "password": "dddddd", "remote_directory": "/home/dddddd/XXXXX/PPGC"},
     "192.168.1.199": {"user": "ddddddd", "password": "ddddddd", "remote_directory": "/home/ddddddd/XXXXX/PPGC"},
