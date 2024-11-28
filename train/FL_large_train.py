@@ -104,7 +104,7 @@ def load_data():
             # test_dataset = datasets.CIFAR100(root=data_path, train=False, download=True, transform=transform)
         elif args.dataset == 'CIFAR10':
             transform_train = transforms.Compose([
-                transforms.RandomResizedCrop(224, scale=(0.8, 1.0)),  # 随机裁剪并调整到64x64大小
+                transforms.RandomResizedCrop(128, scale=(0.8, 1.0)),  # 随机裁剪并调整到64x64大小
                 transforms.RandomHorizontalFlip(),                    # 随机水平翻转
                 transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),  # 颜色抖动
                 transforms.ToTensor(),
@@ -113,7 +113,7 @@ def load_data():
 
             # 测试集数据预处理
             transform_test = transforms.Compose([
-                transforms.Resize((224, 224)),  # 将测试集图像调整为64x64大小
+                transforms.Resize((128, 128)),  # 将测试集图像调整为64x64大小
                 transforms.ToTensor(),
                 transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
             ])
@@ -246,7 +246,7 @@ class GradientCompressor:
 def train_client(global_model, rank, world_size, client_datasets, mechanism='BASELINE', out_bits=1):
     # Randomly select 50% of local clients
     total_local_clients = NUM_CLIENTS_PER_NODE  
-    selected_clients = random.sample(range(total_local_clients), total_local_clients // 10)  # Randomly select half of the clients
+    selected_clients = random.sample(range(total_local_clients), total_local_clients // 2)  # Randomly select half of the clients
     gradient_compressor = GradientCompressor(mechanism, sparsification_ratio, epsilon, out_bits)
 
     # Create client models only once
