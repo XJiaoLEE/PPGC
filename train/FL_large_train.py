@@ -75,6 +75,7 @@ def log_with_time(message):
 # 将数据加载放在全局，只调用一次
 train_dataset, test_dataset = None, None
 
+
 def load_data():
     global train_dataset, test_dataset
     if train_dataset is None or test_dataset is None:
@@ -279,15 +280,23 @@ def apply_global_mask(model, pruning_mask):
                 module.weight.requires_grad = False  # Optional: Freeze the pruned weights
 
 
+# 创建模型只调用一次
+def create_client_models():
+    client_models = []
+    for _ in range(NUM_CLIENTS_PER_NODE):
+        model = create_model()  # 创建模型
+        client_models.append(model)
+    return client_models
+
 # Train client function
-def train_client(global_model, rank, world_size, client_datasets, mechanism='BASELINE', out_bits=1):
+def train_client(global_model,client_models, rank, world_size, client_datasets, mechanism='BASELINE', out_bits=1):
     # Randomly select 50% of local clients
     total_local_clients = NUM_CLIENTS_PER_NODE  
     selected_clients = random.sample(range(total_local_clients), total_local_clients // 10)  # Randomly select half of the clients
     gradient_compressor = GradientCompressor(mechanism, sparsification_ratio, epsilon, out_bits)
 
     # Create client models only once
-    client_models = [create_model() for _ in range(NUM_CLIENTS_PER_NODE)]
+    # client_models = [create_model() for _ in range(NUM_CLIENTS_PER_NODE)]
     client_gradients = []
 
     for client_idx in selected_clients:
@@ -385,6 +394,7 @@ def federated_learning(mechanism):
     client_datasets, test_loader = load_data()
     # print(f"load_data finished")
     global_model = create_model()
+    client_models = create_client_models()
     # Apply global pruning mask before training
     if pruning_mask is not None:
         apply_global_mask(global_model, pruning_mask)  # Apply global mask to the client model
@@ -393,7 +403,7 @@ def federated_learning(mechanism):
         log_with_time(f"Round {round + 1}/{NUM_ROUNDS} started")
 
         # Train clients and collect their gradients
-        client_models_gradients = train_client(global_model, args.rank, args.world_size, client_datasets, args.mechanism, args.out_bits)
+        client_models_gradients = train_client(global_model, client_models, args.rank, args.world_size, client_datasets, args.mechanism, args.out_bits)
 
         # Synchronize all processes before aggregation
         dist.barrier()
