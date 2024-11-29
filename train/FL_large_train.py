@@ -256,6 +256,10 @@ def l1_unstructured_prune_model(model, amount=0.3):
             prune.l1_unstructured(module, name='weight', amount=amount)
             # 移除剪枝参数，固定剪枝
             prune.remove(module, 'weight')
+            # 将剪枝后的权重的梯度设置为零
+            module.weight.grad = None
+            # 如果你不想这些剪枝后的权重更新梯度，可以设置 requires_grad 为 False
+            module.weight.requires_grad = False
     return model
 
 
