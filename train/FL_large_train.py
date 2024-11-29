@@ -309,7 +309,7 @@ def train_client(global_model, rank, world_size, client_datasets, mechanism='BAS
         accumulated_gradients = None
         # Train the model for one epoch
         for epoch in range(EPOCHS_PER_CLIENT):
-            # log_with_time(f"Client {args.rank * NUM_CLIENTS_PER_NODE + client_idx}, Training epoch {epoch + 1}")
+            log_with_time(f"Client {args.rank * NUM_CLIENTS_PER_NODE + client_idx}, Training epoch {epoch + 1}")
             for step, (data, target) in enumerate(client_loader):
                 # log_with_time(f"Client {args.rank * NUM_CLIENTS_PER_NODE + client_idx}, Training step {step + 1}")
                 data, target = data.to(device), target.to(device)
