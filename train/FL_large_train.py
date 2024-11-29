@@ -65,7 +65,7 @@ os.makedirs(log_dir, exist_ok=True)
 log_filename = os.path.join(log_dir, f"{args.dataset}_{mechanism}_outbits{args.out_bits}_epsilon{epsilon}_sparsification{args.sparsification}_large.log")
 sys.stdout = open(log_filename, "w")
 print(f"Logging to {log_filename}")
-
+pruning_mask = {}
 # 打印带时间戳的日志信息
 def log_with_time(message):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -191,6 +191,7 @@ def create_model():
     else:  # MNIST
         model = ConvNet().to(device)
     model = DDP(model, device_ids=[args.rank % torch.cuda.device_count()])
+    generate_global_mask(model, pruning_ratio=0.3)
     return model
 
 # 客户端模型训练
@@ -243,24 +244,38 @@ class GradientCompressor:
         return torch.tensor(grad_np, dtype=grad.dtype, device=grad.device)
 
 import torch.nn.utils.prune as prune
-def l1_unstructured_prune_model(model, amount=0.3):
+
+def generate_global_mask(model, pruning_ratio=0.3):
     """
-    对模型的所有卷积层和全连接层进行非结构化剪枝。
+    Generate a global pruning mask based on the global model's weights.
     Args:
-        model: 需要剪枝的模型
-        amount: 剪枝比例（例如，0.3 表示剪掉 30% 的参数）
+        model (nn.Module): The global model.
+        pruning_ratio (float): The fraction of weights to prune (0.3 means 30% pruning).
+    Returns:
+        dict: A dictionary where each layer's name has the corresponding mask.
     """
-    # 对模型中的每个卷积层和全连接层进行剪枝
+    pruning_mask = {}
     for name, module in model.named_modules():
         if isinstance(module, (nn.Conv2d, nn.Linear)):
-            prune.l1_unstructured(module, name='weight', amount=amount)
-            # 移除剪枝参数，固定剪枝
-            prune.remove(module, 'weight')
-            # 将剪枝后的权重的梯度设置为零
-            module.weight.grad = None
-            # 如果你不想这些剪枝后的权重更新梯度，可以设置 requires_grad 为 False
-            module.weight.requires_grad = False
-    return model
+            # Generate a pruning mask for each layer
+            prune.l1_unstructured(module, name='weight', amount=pruning_ratio)
+            pruning_mask[name] = module.weight_mask.clone()  # Store the mask
+            prune.remove(module, 'weight')  # Remove the pruning method from the module
+    return pruning_mask
+
+def apply_global_mask(model, pruning_mask):
+    """
+    Apply the global pruning mask to a model.
+    Args:
+        model (nn.Module): The model to apply the mask.
+        pruning_mask (dict): The global pruning mask.
+    """
+    for name, module in model.named_modules():
+        if isinstance(module, (nn.Conv2d, nn.Linear)):
+            if name in pruning_mask:
+                # Apply the global pruning mask to the model's weights
+                module.weight.data *= pruning_mask[name]
+                module.weight.requires_grad = False  # Optional: Freeze the pruned weights
 
 
 # Train client function
@@ -276,7 +291,9 @@ def train_client(global_model, rank, world_size, client_datasets, mechanism='BAS
 
     for client_idx in selected_clients:
         model = client_models[client_idx]
-        model = l1_unstructured_prune_model(model, amount=0.5)
+        # Apply global pruning mask before training
+        if pruning_mask is not None:
+            apply_global_mask(model, pruning_mask)  # Apply global mask to the client model
         model.load_state_dict(global_model.state_dict())  # Load global model's parameters as initial parameters
         model.train()
         optimizer = optim.SGD(model.parameters(), lr=LEARNING_RATE, momentum=0.9)
@@ -367,6 +384,9 @@ def federated_learning(mechanism):
     client_datasets, test_loader = load_data()
     # print(f"load_data finished")
     global_model = create_model()
+    # Apply global pruning mask before training
+    if pruning_mask is not None:
+        apply_global_mask(global_model, pruning_mask)  # Apply global mask to the client model
     # print(f"global_model create_model finished")
     for round in range(NUM_ROUNDS):
         log_with_time(f"Round {round + 1}/{NUM_ROUNDS} started")
