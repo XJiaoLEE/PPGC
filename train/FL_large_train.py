@@ -242,6 +242,23 @@ class GradientCompressor:
 
         return torch.tensor(grad_np, dtype=grad.dtype, device=grad.device)
 
+import torch.nn.utils.prune as prune
+def l1_unstructured_prune_model(model, amount=0.3):
+    """
+    对模型的所有卷积层和全连接层进行非结构化剪枝。
+    Args:
+        model: 需要剪枝的模型
+        amount: 剪枝比例（例如，0.3 表示剪掉 30% 的参数）
+    """
+    # 对模型中的每个卷积层和全连接层进行剪枝
+    for name, module in model.named_modules():
+        if isinstance(module, (nn.Conv2d, nn.Linear)):
+            prune.l1_unstructured(module, name='weight', amount=amount)
+            # 移除剪枝参数，固定剪枝
+            prune.remove(module, 'weight')
+    return model
+
+
 # Train client function
 def train_client(global_model, rank, world_size, client_datasets, mechanism='BASELINE', out_bits=1):
     # Randomly select 50% of local clients
@@ -255,6 +272,7 @@ def train_client(global_model, rank, world_size, client_datasets, mechanism='BAS
 
     for client_idx in selected_clients:
         model = client_models[client_idx]
+        model = l1_unstructured_prune_model(model, amount=0.5)
         model.load_state_dict(global_model.state_dict())  # Load global model's parameters as initial parameters
         model.train()
         optimizer = optim.SGD(model.parameters(), lr=LEARNING_RATE, momentum=0.9)
