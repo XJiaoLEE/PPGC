@@ -393,8 +393,8 @@ def federated_learning(mechanism):
     # Load data once before training
     client_datasets, test_loader = load_data()
     # print(f"load_data finished")
-    global_model = create_model()
     client_models = create_client_models()
+    global_model = create_model()
     # Apply global pruning mask before training
     if pruning_mask is not None:
         apply_global_mask(global_model, pruning_mask)  # Apply global mask to the client model
