@@ -285,6 +285,8 @@ def create_client_models():
     client_models = []
     for _ in range(NUM_CLIENTS_PER_NODE):
         model = create_model()  # 创建模型
+        if pruning_mask is not None:
+            apply_global_mask(model, pruning_mask)  # Apply global mask to the client model
         client_models.append(model)
     return client_models
 
@@ -302,8 +304,6 @@ def train_client(global_model,client_models, rank, world_size, client_datasets, 
     for client_idx in selected_clients:
         model = client_models[client_idx]
         # Apply global pruning mask before training
-        if pruning_mask is not None:
-            apply_global_mask(model, pruning_mask)  # Apply global mask to the client model
         model.load_state_dict(global_model.state_dict())  # Load global model's parameters as initial parameters
         model.train()
         optimizer = optim.SGD(model.parameters(), lr=LEARNING_RATE, momentum=0.9)
