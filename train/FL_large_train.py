@@ -23,9 +23,9 @@ print(f"CUDA version: {torch.version.cuda}")
 
 # 参数设置
 NUM_ROUNDS = 300          # 联邦学习轮数
-EPOCHS_PER_CLIENT = 2    # 每轮客户端本地训练次数 4
+EPOCHS_PER_CLIENT = 5    # 每轮客户端本地训练次数 4
 BATCH_SIZE = 125          # 批大小32 300 FOR MNIST 200 FOR CIFAR100 125 FOR CIFAR10
-LEARNING_RATE = 0.05    # 学习率
+LEARNING_RATE = 0.01    # 学习率
 epsilon = 0.0            # DP 使用的 epsilon 值
 NUM_CLIENTS_PER_NODE = 2  # 每个主机上的客户端数量125
 
@@ -81,14 +81,14 @@ def load_data():
         data_path = './data'
         if args.dataset == 'CIFAR100':
             transform_train = transforms.Compose([
-                transforms.RandomResizedCrop(64, scale=(0.8, 1.0)),  # 随机裁剪并调整到64x64大小
+                transforms.RandomResizedCrop(32, scale=(0.8, 1.0)),  # 随机裁剪并调整到64x64大小
                 transforms.RandomHorizontalFlip(),                    # 随机水平翻转
                 transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),  # 颜色抖动
                 transforms.ToTensor(),
                 transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # 使用ImageNet的均值和标准差
             ])
             transform_test = transforms.Compose([
-                transforms.Resize((64, 64)),  # 将测试集图像调整为64x64大小
+                transforms.Resize((32, 32)),  # 将测试集图像调整为64x64大小
                 transforms.ToTensor(),
                 transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
             ])
