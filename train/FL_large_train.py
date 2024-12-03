@@ -23,7 +23,7 @@ print(f"CUDA version: {torch.version.cuda}")
 
 # 参数设置
 NUM_ROUNDS = 1000          # 联邦学习轮数
-EPOCHS_PER_CLIENT = 10    # 每轮客户端本地训练次数 4
+EPOCHS_PER_CLIENT = 1    # 每轮客户端本地训练次数 4
 BATCH_SIZE = 250          # 批大小32 300 FOR MNIST 200 FOR CIFAR100 125 FOR CIFAR10
 LEARNING_RATE = 0.02    # 学习率
 epsilon = 0.0            # DP 使用的 epsilon 值
@@ -104,7 +104,7 @@ def load_data():
             # test_dataset = datasets.CIFAR100(root=data_path, train=False, download=True, transform=transform)
         elif args.dataset == 'CIFAR10':
             transform_train = transforms.Compose([
-                transforms.RandomResizedCrop(64, scale=(0.8, 1.0)),  # 随机裁剪并调整到64x64大小
+                transforms.RandomResizedCrop(224, scale=(0.8, 1.0)),  # 随机裁剪并调整到64x64大小
                 transforms.RandomHorizontalFlip(),                    # 随机水平翻转
                 transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),  # 颜色抖动
                 transforms.ToTensor(),
@@ -113,7 +113,7 @@ def load_data():
 
             # 测试集数据预处理
             transform_test = transforms.Compose([
-                transforms.Resize((64, 64)),  # 将测试集图像调整为64x64大小
+                transforms.Resize((224, 64)),  # 将测试集图像调整为64x64大小
                 transforms.ToTensor(),
                 transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
             ])
