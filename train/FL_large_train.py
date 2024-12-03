@@ -210,17 +210,7 @@ def create_model():
     elif args.dataset == 'CIFAR10':
         from torchvision.models import ResNet18_Weights
         model = models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1).to(device)
-
-        # 修改最后一层全连接层，以适应 CIFAR-10 的类别数量（10类）
         model.fc = nn.Linear(model.fc.in_features, 10).to(device)
-
-        # 冻结预训练层，仅训练最后一层
-        for param in model.parameters():
-            param.requires_grad = False  # 冻结所有层
-        model.fc.requires_grad = True
-        # from torchvision.models import ResNet18_Weights
-        # model = models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1).to(device)
-        # model.fc = nn.Linear(model.fc.in_features, 10).to(device)
     else:  # MNIST
         model = ConvNet().to(device)
     model = DDP(model, device_ids=[args.rank % torch.cuda.device_count()])
