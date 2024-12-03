@@ -246,7 +246,7 @@ class GradientCompressor:
 
 import torch.nn.utils.prune as prune
 
-def generate_global_mask(model, pruning_ratio=0.5):
+def generate_global_mask(model, pruning_ratio=0.1):
     """
     Generate a global pruning mask based on the global model's weights.
     Args:
