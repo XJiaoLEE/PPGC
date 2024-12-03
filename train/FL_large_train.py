@@ -24,10 +24,10 @@ print(f"CUDA version: {torch.version.cuda}")
 # 参数设置
 NUM_ROUNDS = 1000          # 联邦学习轮数
 EPOCHS_PER_CLIENT = 1    # 每轮客户端本地训练次数 4
-BATCH_SIZE = 500          # 批大小32 300 FOR MNIST 200 FOR CIFAR100 125 FOR CIFAR10
+BATCH_SIZE = 125          # 批大小32 300 FOR MNIST 200 FOR CIFAR100 125 FOR CIFAR10
 LEARNING_RATE = 0.01    # 学习率
 epsilon = 0.0            # DP 使用的 epsilon 值
-NUM_CLIENTS_PER_NODE = 5  # 每个主机上的客户端数量125
+NUM_CLIENTS_PER_NODE = 2  # 每个主机上的客户端数量125
 
 # 检测是否有可用的 GPU，如果没有则使用 CPU
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -103,24 +103,46 @@ def load_data():
             # train_dataset = datasets.CIFAR100(root=data_path, train=True, download=True, transform=transform)
             # test_dataset = datasets.CIFAR100(root=data_path, train=False, download=True, transform=transform)
         elif args.dataset == 'CIFAR10':
+            # CIFAR-10 的均值和标准差
+            mean = [0.4914, 0.4822, 0.4465]
+            std = [0.2023, 0.1994, 0.2010]
+
+            # 训练集数据预处理
             transform_train = transforms.Compose([
-                transforms.RandomResizedCrop(32, scale=(0.8, 1.0)),  # 随机裁剪并调整到64x64大小
+                transforms.RandomResizedCrop(32, scale=(0.8, 1.0)),  # 随机裁剪并调整到32x32大小
                 transforms.RandomHorizontalFlip(),                    # 随机水平翻转
-                transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),  # 颜色抖动
                 transforms.ToTensor(),
-                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # 使用ImageNet的均值和标准差
+                transforms.Normalize(mean=mean, std=std)  # 使用CIFAR-10的均值和标准差
             ])
 
             # 测试集数据预处理
             transform_test = transforms.Compose([
-                transforms.Resize((32, 32)),  # 将测试集图像调整为64x64大小
+                transforms.Resize((32, 32)),  # 将测试集图像调整为32x32大小
                 transforms.ToTensor(),
-                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+                transforms.Normalize(mean=mean, std=std)  # 使用CIFAR-10的均值和标准差
             ])
 
             # 加载训练集和测试集
             train_dataset = datasets.CIFAR10(root=data_path, train=True, download=True, transform=transform_train)
             test_dataset = datasets.CIFAR10(root=data_path, train=False, download=True, transform=transform_test)
+            # transform_train = transforms.Compose([
+            #     transforms.RandomResizedCrop(32, scale=(0.8, 1.0)),  # 随机裁剪并调整到64x64大小
+            #     transforms.RandomHorizontalFlip(),                    # 随机水平翻转
+            #     transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),  # 颜色抖动
+            #     transforms.ToTensor(),
+            #     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # 使用ImageNet的均值和标准差
+            # ])
+
+            # # 测试集数据预处理
+            # transform_test = transforms.Compose([
+            #     transforms.Resize((32, 32)),  # 将测试集图像调整为64x64大小
+            #     transforms.ToTensor(),
+            #     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+            # ])
+
+            # # 加载训练集和测试集
+            # train_dataset = datasets.CIFAR10(root=data_path, train=True, download=True, transform=transform_train)
+            # test_dataset = datasets.CIFAR10(root=data_path, train=False, download=True, transform=transform_test)
         else:  # MNIST
             transform = transforms.Compose([
                 transforms.ToTensor(),
@@ -188,7 +210,17 @@ def create_model():
     elif args.dataset == 'CIFAR10':
         from torchvision.models import ResNet18_Weights
         model = models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1).to(device)
+
+        # 修改最后一层全连接层，以适应 CIFAR-10 的类别数量（10类）
         model.fc = nn.Linear(model.fc.in_features, 10).to(device)
+
+        # 冻结预训练层，仅训练最后一层
+        for param in model.parameters():
+            param.requires_grad = False  # 冻结所有层
+        model.fc.requires_grad = True
+        # from torchvision.models import ResNet18_Weights
+        # model = models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1).to(device)
+        # model.fc = nn.Linear(model.fc.in_features, 10).to(device)
     else:  # MNIST
         model = ConvNet().to(device)
     model = DDP(model, device_ids=[args.rank % torch.cuda.device_count()])
