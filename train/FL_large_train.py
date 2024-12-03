@@ -113,7 +113,7 @@ def load_data():
 
             # 测试集数据预处理
             transform_test = transforms.Compose([
-                transforms.Resize((224, 64)),  # 将测试集图像调整为64x64大小
+                transforms.Resize((224, 224)),  # 将测试集图像调整为64x64大小
                 transforms.ToTensor(),
                 transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
             ])
