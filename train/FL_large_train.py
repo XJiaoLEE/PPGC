@@ -341,49 +341,17 @@ def train_client(global_model, rank, world_size, client_datasets, mechanism='BAS
                 loss.backward()
                 
                 # Accumulate gradients after each step
-                # if not client_gradients:
-                #     client_gradients = [torch.zeros_like(param.grad) for param in model.parameters() if param.requires_grad]
-                # Accumulate gradients after each step
                 if accumulated_gradients is None:
                     accumulated_gradients = {name: torch.zeros_like(param.grad) for name, param in model.named_parameters() if param.requires_grad}
                 
                 for name, param in model.named_parameters():
                     if param.requires_grad:
                         accumulated_gradients[name] += param.grad / (EPOCHS_PER_CLIENT*len(client_loader))
-                        # print(f"Gradient shape at step {step}: {name}, {param.grad.shape}")
-                # for i, param in enumerate(model.parameters()):
-                #     if param.requires_grad:
-                #         client_gradients[i] += param.grad /  len(client_loader)
-                #         print("gradient_shape",step, param.grad.shape)
-
         
-        # accumulated_gradients = {name: param.grad.clone() for name, param in model.named_parameters() if param.requires_grad}
         client_gradients.append(accumulated_gradients)
 
 
-        # Collect gradients after training the client
-        # client_grad = [param.grad.clone() for param in model.parameters() if param.requires_grad]
-        # print("client_grad_shape",client_idx,len(accumulated_gradients))
-        # client_gradients.append(client_grad)
-
     return client_gradients
-    #     # Train the model for one step
-    #     for data, target in client_loader:
-    #         optimizer.zero_grad()
-    #         data, target = data.to(device), target.to(device)
-    #         output = model(data)
-    #         loss = criterion(output, target)
-    #         loss.backward()
-            
-    #         # Accumulate gradients after the step
-    #     if not client_gradients:
-    #         client_gradients = [torch.zeros_like(param.grad) for param in model.parameters() if param.requires_grad]
-    #     for i, param in enumerate(model.parameters()):
-    #         if param.requires_grad:
-    #             client_gradients[i] += param.grad / len(selected_clients)
-    #         break  # Only perform one step per client per global step
-        
-    # return client_gradients
 
 # 测试模型准确性
 def test_model(model, test_loader):
@@ -402,15 +370,12 @@ def test_model(model, test_loader):
 
 # Federated learning function
 def federated_learning(mechanism):
-    # print(f"federated_learning started")
     # Load data once before training
     client_datasets, test_loader = load_data()
-    # print(f"load_data finished")
     global_model = create_model()
     # Apply global pruning mask before training
     if pruning_mask is not None:
         apply_global_mask(global_model, pruning_mask)  # Apply global mask to the client model
-    # print(f"global_model create_model finished")
     for round in range(NUM_ROUNDS):
         log_with_time(f"Round {round + 1}/{NUM_ROUNDS} started")
 
@@ -448,39 +413,6 @@ def aggregate_global_model(global_model, client_models_gradients, mechanism):
                         print(f"Skipping aggregation for {grad_name} due to shape mismatch: "
                             f"{client_grad[grad_name].shape if grad_name in client_grad else 'not found'} vs {aggregated_grad.shape}")
                 param.grad = aggregated_grad
-        # for param_idx, (name, param) in enumerate(named_parameters):
-        #     if param.requires_grad:
-        #         aggregated_grad = torch.zeros_like(param.data)
-        #         for client_grad in client_models_gradients:
-        #             # Assuming client_grad is now a dictionary keyed by parameter names
-        #             if name in client_grad and client_grad[name].shape == aggregated_grad.shape:
-        #                 print(f"Matching aggregation for {name} : "
-        #                     f"{client_grad[name].shape if name in client_grad else 'not found'} vs {aggregated_grad.shape}")
-        #                 dist.all_reduce(client_grad[name], op=dist.ReduceOp.SUM)
-        #                 client_grad[name] /= (args.world_size * len(client_models_gradients))
-        #                 aggregated_grad.add_(client_grad[name])
-        #             else:
-        #                 print(f"Skipping aggregation for {name} due to shape mismatch: "
-        #                     f"{client_grad[name].shape if name in client_grad else 'not found'} vs {aggregated_grad.shape}")
-        #         param.grad = aggregated_grad
-    # with torch.no_grad():
-    #     # Directly perform all_reduce on each client's gradient to get the final global gradient
-    #     for param_idx, param in enumerate(global_model.parameters()):
-    #         if param.requires_grad:
-    #             aggregated_grad = torch.zeros_like(param.data)
-    #             for client_grad in client_models_gradients:
-    #                 # Ensure the gradients have the same shape before accumulation
-    #                 if client_grad[param_idx].shape == aggregated_grad.shape:
-    #                     print("equal gradient shape",param_idx, client_grad[param_idx].shape,aggregated_grad.shape)
-    #                     dist.all_reduce(client_grad[param_idx], op=dist.ReduceOp.SUM)
-    #                     client_grad[param_idx] /= (args.world_size * len(client_models_gradients))
-    #                     aggregated_grad.add_(client_grad[param_idx])
-    #                 else :
-    #                     print("unequal gradient shape",param_idx, client_grad[param_idx].shape,aggregated_grad.shape)
-    #             param.grad = aggregated_grad  
-                # 可能存在的问题
-                # 1、client_grad[param_idx].shape == aggregated_grad.shape导致很多梯度没有被聚合
-                # 2、client_grad[param_idx] /= (args.world_size * len(client_models_gradients))可能并没有把所有客户端的都加上，然后又除的太多，导致梯度变化太小
 
         # Update global model parameters using the accumulated gradients
         for param in global_model.parameters():
