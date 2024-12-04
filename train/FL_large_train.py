@@ -27,7 +27,7 @@ EPOCHS_PER_CLIENT = 1    # 每轮客户端本地训练次数 4
 BATCH_SIZE = 125          # 批大小32 300 FOR MNIST 200 FOR CIFAR100 125 FOR CIFAR10
 LEARNING_RATE = 0.01    # 学习率
 epsilon = 0.0            # DP 使用的 epsilon 值
-NUM_CLIENTS_PER_NODE = 2  # 每个主机上的客户端数量125
+NUM_CLIENTS_PER_NODE = 1  # 每个主机上的客户端数量125
 
 # 检测是否有可用的 GPU，如果没有则使用 CPU
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -214,7 +214,7 @@ def create_model():
     else:  # MNIST
         model = ConvNet().to(device)
     model = DDP(model, device_ids=[args.rank % torch.cuda.device_count()])
-    generate_global_mask(model, pruning_ratio=0.3)
+    generate_global_mask(model, pruning_ratio=0.0)
     return model
 
 # 客户端模型训练
@@ -305,7 +305,7 @@ def apply_global_mask(model, pruning_mask):
 def train_client(global_model, rank, world_size, client_datasets, mechanism='BASELINE', out_bits=1):
     # Randomly select 50% of local clients
     total_local_clients = NUM_CLIENTS_PER_NODE  
-    selected_clients = random.sample(range(total_local_clients), total_local_clients // 2)  # Randomly select half of the clients
+    selected_clients = random.sample(range(total_local_clients), total_local_clients // 1)  # Randomly select half of the clients
     gradient_compressor = GradientCompressor(mechanism, sparsification_ratio, epsilon, out_bits)
 
     # Create client models only once
