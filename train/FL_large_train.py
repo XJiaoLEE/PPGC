@@ -27,7 +27,7 @@ EPOCHS_PER_CLIENT = 1    # 每轮客户端本地训练次数 4
 BATCH_SIZE = 125          # 批大小32 300 FOR MNIST 200 FOR CIFAR100 125 FOR CIFAR10
 LEARNING_RATE = 0.01    # 学习率
 epsilon = 0.0            # DP 使用的 epsilon 值
-NUM_CLIENTS_PER_NODE = 1  # 每个主机上的客户端数量125
+NUM_CLIENTS_PER_NODE = 5  # 每个主机上的客户端数量125
 
 # 检测是否有可用的 GPU，如果没有则使用 CPU
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -80,6 +80,7 @@ def load_data():
     if train_dataset is None or test_dataset is None:
         data_path = './data'
         if args.dataset == 'CIFAR100':
+            LEARNING_RATE = 0.001
             transform_train = transforms.Compose([
                 transforms.RandomResizedCrop(32, scale=(0.8, 1.0)),  # 随机裁剪并调整到64x64大小
                 transforms.RandomHorizontalFlip(),                    # 随机水平翻转
@@ -103,6 +104,7 @@ def load_data():
             # train_dataset = datasets.CIFAR100(root=data_path, train=True, download=True, transform=transform)
             # test_dataset = datasets.CIFAR100(root=data_path, train=False, download=True, transform=transform)
         elif args.dataset == 'CIFAR10':
+            LEARNING_RATE = 0.001
             # CIFAR-10 的均值和标准差
             mean = [0.4914, 0.4822, 0.4465]
             std = [0.2023, 0.1994, 0.2010]
@@ -302,7 +304,7 @@ def apply_global_mask(model, pruning_mask):
 
 
 # Train client function
-def train_client(global_model, rank, world_size, client_datasets, mechanism='BASELINE', out_bits=1):
+def train_client(global_model, rank, world_size, client_datasets, mechanism='BASELINE', out_bits=2):
     # Randomly select 50% of local clients
     total_local_clients = NUM_CLIENTS_PER_NODE  
     selected_clients = random.sample(range(total_local_clients), total_local_clients // 1)  # Randomly select half of the clients
