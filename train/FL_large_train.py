@@ -134,7 +134,7 @@ def load_data():
             # train_dataset = datasets.CIFAR10(root=data_path, train=True, download=True, transform=transform_train)
             # test_dataset = datasets.CIFAR10(root=data_path, train=False, download=True, transform=transform_test)
             transform_train = transforms.Compose([
-                transforms.RandomResizedCrop(64, scale=(0.8, 1.0)),  # 随机裁剪并调整到64x64大小
+                transforms.RandomResizedCrop(32, scale=(0.8, 1.0)),  # 随机裁剪并调整到64x64大小
                 transforms.RandomHorizontalFlip(),                    # 随机水平翻转
                 transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),  # 颜色抖动
                 transforms.ToTensor(),
