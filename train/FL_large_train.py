@@ -434,16 +434,16 @@ def aggregate_global_model(global_model, client_models_gradients, mechanism,opti
             print(f"Parameter {name} gradient norm: {torch.norm(param.grad).item()}")
 
     # 在参数更新部分使用 torch.no_grad()
-    with torch.no_grad():
-        for name, param in global_model.named_parameters():
-            if param.requires_grad:
-                print(f"Before update {name}: {param.data[:5]}")
-        optimizer.step()
-        for name, param in global_model.named_parameters():
-            if param.requires_grad:
-                print(f"After update {name}: {param.data[:5]}")
+    # with torch.no_grad():
+    for name, param in global_model.named_parameters():
+        if param.requires_grad:
+            print(f"Before update {name}: {param.data[:5]}")
+    optimizer.step()
+    for name, param in global_model.named_parameters():
+        if param.requires_grad:
+            print(f"After update {name}: {param.data[:5]}")
 
-        optimizer.zero_grad()
+    optimizer.zero_grad()
         # # Update global model parameters using the accumulated gradients
         # for param in global_model.parameters():
         #     if param.requires_grad:
