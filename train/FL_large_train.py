@@ -411,7 +411,7 @@ def federated_learning(mechanism):
 def aggregate_global_model(global_model, client_models_gradients, mechanism,optimizer):
     log_with_time("Aggregating global model from local gradients")
     # print("len(client_models_gradients)",len(client_models_gradients))
-    # print("LEARNING_RATE",LEARNING_RATE)
+    print("LEARNING_RATE",LEARNING_RATE)
     
     with torch.no_grad():
         # Collect gradients by named parameter to ensure consistency
