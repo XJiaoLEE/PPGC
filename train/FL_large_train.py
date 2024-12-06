@@ -56,6 +56,8 @@ if sparsification_ratio > 0:
 if epsilon > 0 :
     if mechanism == 'BASELINE' :
         mechanism = 'LDP-FL'
+if args.dataset != 'MNIST':
+    LEARNING_RATE = 0.001
 # 初始化进程组
 dist.init_process_group(backend=args.dist_backend, init_method=args.dist_url, world_size=args.world_size, rank=args.rank)
 
