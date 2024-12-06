@@ -394,7 +394,7 @@ def federated_learning(mechanism):
         log_with_time(f"Round {round + 1}/{NUM_ROUNDS} started")
 
         # Train clients and collect their gradients
-        client_models_gradients = train_client(global_model, args.rank, args.world_size, client_datasets, args.mechanism, args.out_bits)
+        client_models_gradients = train_client(global_model.module, args.rank, args.world_size, client_datasets, args.mechanism, args.out_bits)
 
         # Synchronize all processes before aggregation
         dist.barrier()
