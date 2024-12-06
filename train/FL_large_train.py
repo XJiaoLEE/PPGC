@@ -381,6 +381,8 @@ def federated_learning(mechanism):
     # Load data once before training
     client_datasets, test_loader = load_data()
     global_model = create_model()
+    # 在创建 global_model 后，初始化优化器
+    global_optimizer = optim.Adam(global_model.parameters(), lr=LEARNING_RATE)
     # Apply global pruning mask before training
     if pruning_mask is not None:
         apply_global_mask(global_model, pruning_mask)  # Apply global mask to the client model
@@ -392,14 +394,14 @@ def federated_learning(mechanism):
 
         # Synchronize all processes before aggregation
         dist.barrier()
-        aggregate_global_model(global_model.module, client_models_gradients, mechanism)
+        aggregate_global_model(global_model.module, client_models_gradients, mechanism,global_optimizer)
 
         # Test aggregated global model
         aggregated_accuracy = test_model(global_model, test_loader)
         log_with_time(f"Global model accuracy after aggregation: {aggregated_accuracy:.4f}")
 
       
-def aggregate_global_model(global_model, client_models_gradients, mechanism):
+def aggregate_global_model(global_model, client_models_gradients, mechanism,optimizer):
     log_with_time("Aggregating global model from local gradients")
 
     with torch.no_grad():
@@ -422,10 +424,13 @@ def aggregate_global_model(global_model, client_models_gradients, mechanism):
                             f"{client_grad[grad_name].shape if grad_name in client_grad else 'not found'} vs {aggregated_grad.shape}")
                 param.grad = aggregated_grad
 
-        # Update global model parameters using the accumulated gradients
-        for param in global_model.parameters():
-            if param.requires_grad:
-                param.data -= LEARNING_RATE * param.grad
+        # 使用优化器更新模型参数
+        optimizer.step()
+        optimizer.zero_grad()  # 清空梯度
+        # # Update global model parameters using the accumulated gradients
+        # for param in global_model.parameters():
+        #     if param.requires_grad:
+        #         param.data -= LEARNING_RATE * param.grad
 
 
 # 运行联邦学习
