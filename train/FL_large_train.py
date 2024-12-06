@@ -407,7 +407,7 @@ def aggregate_global_model(global_model, client_models_gradients, mechanism,opti
     with torch.no_grad():
         # Collect gradients by named parameter to ensure consistency
         named_parameters = list(global_model.named_parameters())
-        for name, param in global_model.named_parameters():
+        for name, param in global_model.module.named_parameters():
             if param.requires_grad:
                 aggregated_grad = torch.zeros_like(param.data)
                 for client_grad in client_models_gradients:
