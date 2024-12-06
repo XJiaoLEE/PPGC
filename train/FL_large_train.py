@@ -401,14 +401,15 @@ def federated_learning(mechanism):
         aggregate_global_model(global_model.module, client_models_gradients, mechanism,global_optimizer)
 
         # Test aggregated global model
-        aggregated_accuracy = test_model(global_model, test_loader)
-        log_with_time(f"Global model accuracy after aggregation: {aggregated_accuracy:.4f}")
+        if round%10 == 0:
+            aggregated_accuracy = test_model(global_model, test_loader)
+            log_with_time(f"Global model accuracy after aggregation: {aggregated_accuracy:.4f}")
 
       
 def aggregate_global_model(global_model, client_models_gradients, mechanism,optimizer):
     log_with_time("Aggregating global model from local gradients")
-    print("len(client_models_gradients)",len(client_models_gradients))
-    print("LEARNING_RATE",LEARNING_RATE)
+    # print("len(client_models_gradients)",len(client_models_gradients))
+    # print("LEARNING_RATE",LEARNING_RATE)
     
     # with torch.no_grad():
     # Collect gradients by named parameter to ensure consistency
