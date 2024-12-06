@@ -397,7 +397,7 @@ def federated_learning(mechanism):
         aggregate_global_model(global_model.module, client_models_gradients, mechanism,global_optimizer)
 
         # Test aggregated global model
-        aggregated_accuracy = test_model(global_model, test_loader)
+        aggregated_accuracy = test_model(global_model.module, test_loader)
         log_with_time(f"Global model accuracy after aggregation: {aggregated_accuracy:.4f}")
 
       
@@ -422,7 +422,8 @@ def aggregate_global_model(global_model, client_models_gradients, mechanism,opti
                 else:
                     print(f"Skipping aggregation for {grad_name} due to shape mismatch: "
                         f"{client_grad[grad_name].shape if grad_name in client_grad else 'not found'} vs {aggregated_grad.shape}")
-            param.grad = aggregated_grad.detach().clone()  # 确保梯度是叶子节点
+            param.grad = aggregated_grad
+            # .detach().clone()  # 确保梯度是叶子节点
 
     # 在参数更新部分使用 torch.no_grad()
     with torch.no_grad():
