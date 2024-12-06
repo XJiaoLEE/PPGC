@@ -424,6 +424,9 @@ def aggregate_global_model(global_model, client_models_gradients, mechanism,opti
                         f"{client_grad[grad_name].shape if grad_name in client_grad else 'not found'} vs {aggregated_grad.shape}")
             param.grad = aggregated_grad
             # .detach().clone()  # 确保梯度是叶子节点
+    for name, param in global_model.named_parameters():
+        if param.requires_grad and param.grad is not None:
+            print(f"Parameter {name} gradient norm: {torch.norm(param.grad).item()}")
 
     # 在参数更新部分使用 torch.no_grad()
     with torch.no_grad():
