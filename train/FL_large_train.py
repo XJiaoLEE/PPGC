@@ -424,9 +424,9 @@ def aggregate_global_model(global_model, client_models_gradients, mechanism,opti
                             f"{client_grad[grad_name].shape if grad_name in client_grad else 'not found'} vs {aggregated_grad.shape}")
                 param.grad = aggregated_grad
 
-        # 使用优化器更新模型参数
-        optimizer.step()
-        optimizer.zero_grad()  # 清空梯度
+    # 使用优化器更新模型参数
+    optimizer.step()
+    optimizer.zero_grad()  # 清空梯度
         # # Update global model parameters using the accumulated gradients
         # for param in global_model.parameters():
         #     if param.requires_grad:
