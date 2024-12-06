@@ -411,7 +411,7 @@ def federated_learning(mechanism):
 def aggregate_global_model(global_model, client_models_gradients, mechanism,optimizer):
     log_with_time("Aggregating global model from local gradients")
     # print("len(client_models_gradients)",len(client_models_gradients))
-    print("LEARNING_RATE",LEARNING_RATE)
+    # print("LEARNING_RATE",LEARNING_RATE)
     
     with torch.no_grad():
         # Collect gradients by named parameter to ensure consistency
@@ -459,12 +459,12 @@ def aggregate_global_model(global_model, client_models_gradients, mechanism,opti
                 param.data -= LEARNING_RATE * param.grad
 
         # 打印第一个需要更新梯度的层的更新后的值
-        first_printed = False  # 重置标志位，重新打印第一个层的更新
-        for name, param in global_model.named_parameters():
-            if param.requires_grad:
-                if not first_printed:
-                    print(f"After update {name}: {param.data[1,:5]}")  # 打印第一个需要更新的参数
-                    first_printed = True  # 只打印第一个需要更新的层
+        # first_printed = False  # 重置标志位，重新打印第一个层的更新
+        # for name, param in global_model.named_parameters():
+        #     if param.requires_grad:
+        #         if not first_printed:
+        #             print(f"After update {name}: {param.data[1,:5]}")  # 打印第一个需要更新的参数
+        #             first_printed = True  # 只打印第一个需要更新的层
 
 
 
