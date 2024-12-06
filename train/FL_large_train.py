@@ -381,11 +381,11 @@ def federated_learning(mechanism):
     # Load data once before training
     client_datasets, test_loader = load_data()
     global_model = create_model()
-    # 在创建 global_model 后，初始化优化器
-    global_optimizer = optim.Adam(global_model.parameters(), lr=LEARNING_RATE)
     # Apply global pruning mask before training
     if pruning_mask is not None:
         apply_global_mask(global_model, pruning_mask)  # Apply global mask to the client model
+    # 在创建 global_model 后，初始化优化器
+    global_optimizer = optim.Adam(global_model.parameters(), lr=LEARNING_RATE)
     for round in range(NUM_ROUNDS):
         log_with_time(f"Round {round + 1}/{NUM_ROUNDS} started")
 
