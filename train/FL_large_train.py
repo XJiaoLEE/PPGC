@@ -443,9 +443,15 @@ def aggregate_global_model(global_model, client_models_gradients, mechanism,opti
                 print(f"Before update {name}: {param.data[:5]}")  # 打印第一个需要更新梯度的参数
                 first_printed = True  # 只打印第一个需要更新的层
 
-    # 调用优化器进行参数更新
-    optimizer.step()
-    optimizer.zero_grad()
+    # # 调用优化器进行参数更新
+    # optimizer.step()
+    # optimizer.zero_grad()
+
+    
+    # Update global model parameters using the accumulated gradients
+    for param in global_model.parameters():
+        if param.requires_grad:
+            param.data -= LEARNING_RATE * param.grad
 
     # 打印第一个需要更新梯度的层的更新后的值
     first_printed = False  # 重置标志位，重新打印第一个层的更新
@@ -455,10 +461,6 @@ def aggregate_global_model(global_model, client_models_gradients, mechanism,opti
                 print(f"After update {name}: {param.data[:5]}")  # 打印第一个需要更新的参数
                 first_printed = True  # 只打印第一个需要更新的层
 
-        # # Update global model parameters using the accumulated gradients
-        # for param in global_model.parameters():
-        #     if param.requires_grad:
-        #         param.data -= LEARNING_RATE * param.grad
 
 
 # 运行联邦学习
