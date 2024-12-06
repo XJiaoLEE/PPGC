@@ -386,11 +386,11 @@ def federated_learning(mechanism):
         apply_global_mask(global_model, pruning_mask)  # Apply global mask to the client model
     # 在创建 global_model 后，初始化优化器
     global_optimizer = optim.Adam(global_model.module.parameters(), lr=LEARNING_RATE)
-    for group in global_optimizer.param_groups:
-        for p in group['params']:
-            print(f"Optimizer is managing parameter with id: {id(p)}")
+    # for group in global_optimizer.param_groups:
+    #     for p in group['params']:
+    #         print(f"Optimizer is managing parameter with id: {id(p)}")
 
-    for round in range(1):
+    for round in range(NUM_ROUNDS):
         log_with_time(f"Round {round + 1}/{NUM_ROUNDS} started")
 
         # Train clients and collect their gradients
@@ -436,30 +436,30 @@ def aggregate_global_model(global_model, client_models_gradients, mechanism,opti
     # 在参数更新部分使用 torch.no_grad()
     # with torch.no_grad():
     # 在调用 optimizer.step() 前后，只打印第一个需要更新梯度的层的参数
-    first_printed = False  # 标志位，确保只打印第一个需要更新的层
-    for name, param in global_model.named_parameters():
-        if param.requires_grad:
-            if not first_printed:
-                print(f"Before update {name}: {param.data[:5]}")  # 打印第一个需要更新梯度的参数
-                first_printed = True  # 只打印第一个需要更新的层
+    # first_printed = False  # 标志位，确保只打印第一个需要更新的层
+    # for name, param in global_model.named_parameters():
+    #     if param.requires_grad:
+    #         if not first_printed:
+    #             print(f"Before update {name}: {param.data[:5]}")  # 打印第一个需要更新梯度的参数
+    #             first_printed = True  # 只打印第一个需要更新的层
 
     # # 调用优化器进行参数更新
-    # optimizer.step()
-    # optimizer.zero_grad()
+    optimizer.step()
+    optimizer.zero_grad()
 
     
     # Update global model parameters using the accumulated gradients
-    for param in global_model.parameters():
-        if param.requires_grad:
-            param.data -= LEARNING_RATE * param.grad
+    # for param in global_model.parameters():
+    #     if param.requires_grad:
+    #         param.data -= LEARNING_RATE * param.grad
 
     # 打印第一个需要更新梯度的层的更新后的值
-    first_printed = False  # 重置标志位，重新打印第一个层的更新
-    for name, param in global_model.named_parameters():
-        if param.requires_grad:
-            if not first_printed:
-                print(f"After update {name}: {param.data[:5]}")  # 打印第一个需要更新的参数
-                first_printed = True  # 只打印第一个需要更新的层
+    # first_printed = False  # 重置标志位，重新打印第一个层的更新
+    # for name, param in global_model.named_parameters():
+    #     if param.requires_grad:
+    #         if not first_printed:
+    #             print(f"After update {name}: {param.data[:5]}")  # 打印第一个需要更新的参数
+    #             first_printed = True  # 只打印第一个需要更新的层
 
 
 
