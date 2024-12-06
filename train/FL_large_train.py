@@ -390,7 +390,7 @@ def federated_learning(mechanism):
         for p in group['params']:
             print(f"Optimizer is managing parameter with id: {id(p)}")
 
-    for round in range(NUM_ROUNDS):
+    for round in range(1):
         log_with_time(f"Round {round + 1}/{NUM_ROUNDS} started")
 
         # Train clients and collect their gradients
