@@ -407,9 +407,7 @@ def federated_learning(mechanism):
       
 def aggregate_global_model(global_model, client_models_gradients, mechanism,optimizer):
     log_with_time("Aggregating global model from local gradients")
-    for name, param in global_model.named_parameters():
-        print(f"Parameter {name} id: {id(param)}")
-
+    
     # with torch.no_grad():
     # Collect gradients by named parameter to ensure consistency
     named_parameters = list(global_model.named_parameters())
@@ -437,7 +435,14 @@ def aggregate_global_model(global_model, client_models_gradients, mechanism,opti
 
     # 在参数更新部分使用 torch.no_grad()
     with torch.no_grad():
+        for name, param in global_model.named_parameters():
+            if param.requires_grad:
+                print(f"Before update {name}: {param.data[:5]}")
         optimizer.step()
+        for name, param in global_model.named_parameters():
+            if param.requires_grad:
+                print(f"After update {name}: {param.data[:5]}")
+
         optimizer.zero_grad()
         # # Update global model parameters using the accumulated gradients
         # for param in global_model.parameters():
