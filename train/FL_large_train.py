@@ -413,58 +413,58 @@ def aggregate_global_model(global_model, client_models_gradients, mechanism,opti
     # print("len(client_models_gradients)",len(client_models_gradients))
     # print("LEARNING_RATE",LEARNING_RATE)
     
-    # with torch.no_grad():
-    # Collect gradients by named parameter to ensure consistency
-    # named_parameters = list(global_model.named_parameters())
-    for name, param in global_model.named_parameters():
-        if param.requires_grad:
-            aggregated_grad = torch.zeros_like(param.data)
-            for client_grad in client_models_gradients:
-                # 使用添加 'module.' 前缀的名称来匹配
-                grad_name = "module." + name
-                if grad_name in client_grad and client_grad[grad_name].shape == aggregated_grad.shape:
-                    # print(f"Matching aggregation for {name} : "
-                    #     f"{client_grad[name].shape if name in client_grad else 'not found'} vs {aggregated_grad.shape}")
-                    dist.all_reduce(client_grad[grad_name], op=dist.ReduceOp.SUM)
-                    dist.barrier()
-                    client_grad[grad_name] /= (args.world_size * len(client_models_gradients))
-                    aggregated_grad.add_(client_grad[grad_name])
-                else:
-                    print(f"Skipping aggregation for {grad_name} due to shape mismatch: "
-                        f"{client_grad[grad_name].shape if grad_name in client_grad else 'not found'} vs {aggregated_grad.shape}")
-            param.grad = aggregated_grad
-            # .detach().clone()  # 确保梯度是叶子节点
-    # for name, param in global_model.named_parameters():
-    #     if param.requires_grad and param.grad is not None:
-    #         print(f"Parameter {name} gradient norm: {torch.norm(param.grad).item()}")
+    with torch.no_grad():
+        # Collect gradients by named parameter to ensure consistency
+        # named_parameters = list(global_model.named_parameters())
+        for name, param in global_model.named_parameters():
+            if param.requires_grad:
+                aggregated_grad = torch.zeros_like(param.data)
+                for client_grad in client_models_gradients:
+                    # 使用添加 'module.' 前缀的名称来匹配
+                    grad_name = "module." + name
+                    if grad_name in client_grad and client_grad[grad_name].shape == aggregated_grad.shape:
+                        # print(f"Matching aggregation for {name} : "
+                        #     f"{client_grad[name].shape if name in client_grad else 'not found'} vs {aggregated_grad.shape}")
+                        dist.all_reduce(client_grad[grad_name], op=dist.ReduceOp.SUM)
+                        dist.barrier()
+                        client_grad[grad_name] /= (args.world_size * len(client_models_gradients))
+                        aggregated_grad.add_(client_grad[grad_name])
+                    else:
+                        print(f"Skipping aggregation for {grad_name} due to shape mismatch: "
+                            f"{client_grad[grad_name].shape if grad_name in client_grad else 'not found'} vs {aggregated_grad.shape}")
+                param.grad = aggregated_grad
+                # .detach().clone()  # 确保梯度是叶子节点
+        # for name, param in global_model.named_parameters():
+        #     if param.requires_grad and param.grad is not None:
+        #         print(f"Parameter {name} gradient norm: {torch.norm(param.grad).item()}")
 
-    # 在参数更新部分使用 torch.no_grad()
-    # with torch.no_grad():
-    # 在调用 optimizer.step() 前后，只打印第一个需要更新梯度的层的参数
-    # first_printed = False  # 标志位，确保只打印第一个需要更新的层
-    # for name, param in global_model.named_parameters():
-    #     if param.requires_grad:
-    #         if not first_printed:
-    #             print(f"Before update {name}: {param.data[1,:5]}")  # 打印第一个需要更新梯度的参数
-    #             first_printed = True  # 只打印第一个需要更新的层
+        # 在参数更新部分使用 torch.no_grad()
+        # with torch.no_grad():
+        # 在调用 optimizer.step() 前后，只打印第一个需要更新梯度的层的参数
+        # first_printed = False  # 标志位，确保只打印第一个需要更新的层
+        # for name, param in global_model.named_parameters():
+        #     if param.requires_grad:
+        #         if not first_printed:
+        #             print(f"Before update {name}: {param.data[1,:5]}")  # 打印第一个需要更新梯度的参数
+        #             first_printed = True  # 只打印第一个需要更新的层
 
-    # # 调用优化器进行参数更新
-    # optimizer.step()
-    # optimizer.zero_grad()
+        # # 调用优化器进行参数更新
+        # optimizer.step()
+        # optimizer.zero_grad()
 
-    
-    # Update global model parameters using the accumulated gradients
-    for param in global_model.parameters():
-        if param.requires_grad:
-            param.data -= LEARNING_RATE * param.grad
+        
+        # Update global model parameters using the accumulated gradients
+        for param in global_model.parameters():
+            if param.requires_grad:
+                param.data -= LEARNING_RATE * param.grad
 
-    # 打印第一个需要更新梯度的层的更新后的值
-    # first_printed = False  # 重置标志位，重新打印第一个层的更新
-    # for name, param in global_model.named_parameters():
-    #     if param.requires_grad:
-    #         if not first_printed:
-    #             print(f"After update {name}: {param.data[1,:5]}")  # 打印第一个需要更新的参数
-    #             first_printed = True  # 只打印第一个需要更新的层
+        # 打印第一个需要更新梯度的层的更新后的值
+        first_printed = False  # 重置标志位，重新打印第一个层的更新
+        for name, param in global_model.named_parameters():
+            if param.requires_grad:
+                if not first_printed:
+                    print(f"After update {name}: {param.data[1,:5]}")  # 打印第一个需要更新的参数
+                    first_printed = True  # 只打印第一个需要更新的层
 
 
 
