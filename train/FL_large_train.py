@@ -403,9 +403,11 @@ def federated_learning(mechanism):
         aggregate_global_model(global_model.module, client_models_gradients, mechanism,global_optimizer)
 
         # Test aggregated global model
-        if round%10 == 0:
-            aggregated_accuracy = test_model(global_model, test_loader)
-            log_with_time(f"Global model accuracy after aggregation: {aggregated_accuracy:.4f}")
+        aggregated_accuracy = test_model(global_model, test_loader)
+        log_with_time(f"Global model accuracy after aggregation: {aggregated_accuracy:.4f}"
+        # if round%10 == 0:
+        #     aggregated_accuracy = test_model(global_model, test_loader)
+        #     log_with_time(f"Global model accuracy after aggregation: {aggregated_accuracy:.4f}")
 
       
 def aggregate_global_model(global_model, client_models_gradients, mechanism,optimizer):
