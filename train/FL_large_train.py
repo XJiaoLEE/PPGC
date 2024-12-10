@@ -388,10 +388,8 @@ def federated_learning(mechanism):
     if pruning_mask is not None:
         apply_global_mask(global_model, pruning_mask)  # Apply global mask to the client model
     # 在创建 global_model 后，初始化优化器
-    global_optimizer = torch.optim.SGD(
-    global_model.parameters(),
-    lr=LEARNING_RATE,
-    momentum=0.9  )
+    global_optimizer = torch.optim.SGD(global_model.parameters(), lr=LEARNING_RATE)
+    # global_optimizer = torch.optim.SGD(global_model.parameters(), lr=LEARNING_RATE,momentum=0.9)
     # for group in global_optimizer.param_groups:
     #     for p in group['params']:
     #         print(f"Optimizer is managing parameter with id: {id(p)}")
