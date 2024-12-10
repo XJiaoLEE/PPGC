@@ -329,7 +329,8 @@ def train_client(global_model, rank, world_size, client_datasets, mechanism='BAS
             apply_global_mask(model, pruning_mask)  # Apply global mask to the client model
         model.load_state_dict(global_model.state_dict())  # Load global model's parameters as initial parameters
         model.train()
-        optimizer = optim.SGD(model.parameters(), lr=LEARNING_RATE, momentum=0.9)
+        # optimizer = optim.SGD(model.parameters(), lr=LEARNING_RATE, momentum=0.9)
+        optimizer = optim.SGD(model.parameters(), lr=LEARNING_RATE)
         criterion = nn.CrossEntropyLoss()
         client_loader = client_datasets[args.rank * NUM_CLIENTS_PER_NODE + client_idx]
         
@@ -387,7 +388,10 @@ def federated_learning(mechanism):
     if pruning_mask is not None:
         apply_global_mask(global_model, pruning_mask)  # Apply global mask to the client model
     # 在创建 global_model 后，初始化优化器
-    global_optimizer = optim.Adam(global_model.module.parameters(), lr=LEARNING_RATE)
+    global_optimizer = torch.optim.SGD(
+    global_model.parameters(),
+    lr=LEARNING_RATE,
+    momentum=0.9  )
     # for group in global_optimizer.param_groups:
     #     for p in group['params']:
     #         print(f"Optimizer is managing parameter with id: {id(p)}")
