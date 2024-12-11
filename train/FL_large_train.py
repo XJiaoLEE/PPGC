@@ -25,7 +25,7 @@ print(f"CUDA version: {torch.version.cuda}")
 # 参数设置
 NUM_ROUNDS = 3000          # 联邦学习轮数
 EPOCHS_PER_CLIENT = 1    # 每轮客户端本地训练次数 4
-BATCH_SIZE = 1000          # 批大小32 300 FOR MNIST 200 FOR CIFAR100 125 FOR CIFAR10  //250 for resnet18 cifar10
+BATCH_SIZE = 250          # 批大小32 300 FOR MNIST 200 FOR CIFAR100 125 FOR CIFAR10
 LEARNING_RATE = 0.01    # 学习率
 epsilon = 0.0            # DP 使用的 epsilon 值
 NUM_CLIENTS_PER_NODE = 2  # 每个主机上的客户端数量125
@@ -191,10 +191,9 @@ def create_model():
         model = models.resnet50(weights=ResNet50_Weights.IMAGENET1K_V1).to(device)
         model.fc = nn.Linear(model.fc.in_features, 100).to(device)
     elif args.dataset == 'CIFAR10':
-        model = Cifar10FLNet().to(device)
-        # from torchvision.models import ResNet18_Weights
-        # model = models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1).to(device)
-        # model.fc = nn.Linear(model.fc.in_features, 10).to(device)
+        from torchvision.models import ResNet18_Weights
+        model = models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1).to(device)
+        model.fc = nn.Linear(model.fc.in_features, 10).to(device)
     else:  # MNIST
         model = ConvNet().to(device)
     model = DDP(model, device_ids=[args.rank % torch.cuda.device_count()])
