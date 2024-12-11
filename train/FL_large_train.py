@@ -10,6 +10,7 @@ from torchvision import datasets, transforms, models
 from torch.utils.data import DataLoader, random_split
 from mechanisms import RAPPORMechanism, Laplace
 from Compressors import PPGC, QSGD, TernGrad, OneBit,TopK
+from load_model import Cifar10FLNet, ConvNet
 import torch.distributed as dist
 import torch.multiprocessing as mp
 from torch.nn.parallel import DistributedDataParallel as DDP
@@ -107,34 +108,6 @@ def load_data():
             # test_dataset = datasets.CIFAR100(root=data_path, train=False, download=True, transform=transform)
         elif args.dataset == 'CIFAR10':
             LEARNING_RATE = 0.001
-            # CIFAR-10 的均值和标准差
-            # mean = [0.4914, 0.4822, 0.4465]
-            # std = [0.2023, 0.1994, 0.2010]
-
-            # # 训练集数据预处理
-            # transform_train = transforms.Compose([
-            #     transforms.RandomCrop(32, padding=4),  # 随机裁剪并调整到32x32大小
-            #     transforms.RandomHorizontalFlip(),                    # 随机水平翻转
-            #     transforms.ToTensor(),
-            #     transforms.Normalize(mean=mean, std=std)  # 使用CIFAR-10的均值和标准差
-            # ])
-            # # transform_train = transforms.Compose([
-            # #     transforms.RandomResizedCrop(32, scale=(0.8, 1.0)),  # 随机裁剪并调整到32x32大小
-            # #     transforms.RandomHorizontalFlip(),                    # 随机水平翻转
-            # #     transforms.ToTensor(),
-            # #     transforms.Normalize(mean=mean, std=std)  # 使用CIFAR-10的均值和标准差
-            # # ])
-
-            # # 测试集数据预处理
-            # transform_test = transforms.Compose([
-            #     transforms.Resize((32, 32)),  # 将测试集图像调整为32x32大小
-            #     transforms.ToTensor(),
-            #     transforms.Normalize(mean=mean, std=std)  # 使用CIFAR-10的均值和标准差
-            # ])
-
-            # # 加载训练集和测试集
-            # train_dataset = datasets.CIFAR10(root=data_path, train=True, download=True, transform=transform_train)
-            # test_dataset = datasets.CIFAR10(root=data_path, train=False, download=True, transform=transform_test)
             transform_train = transforms.Compose([
                 transforms.RandomResizedCrop(64, scale=(0.8, 1.0)),  # 随机裁剪并调整到64x64大小
                 transforms.RandomHorizontalFlip(),                    # 随机水平翻转
@@ -188,28 +161,28 @@ def load_data():
         # return client_loaders, DataLoader(test_dataset, batch_size=BATCH_SIZE)
         return client_datasets, DataLoader(test_dataset, batch_size=BATCH_SIZE)
 
-# Define ConvNet model for MNIST
-class ConvNet(nn.Module):
-    def __init__(self):
-        super(ConvNet, self).__init__()
-        self.conv1 = nn.Conv2d(1, 16, 8, 2, padding=2)
-        self.conv2 = nn.Conv2d(16, 32, 4, 2, padding=0)
-        self.fc1 = nn.Linear(32 * 5 * 5, 32)
-        self.fc2 = nn.Linear(32, 10)
+# # Define ConvNet model for MNIST
+# class ConvNet(nn.Module):
+#     def __init__(self):
+#         super(ConvNet, self).__init__()
+#         self.conv1 = nn.Conv2d(1, 16, 8, 2, padding=2)
+#         self.conv2 = nn.Conv2d(16, 32, 4, 2, padding=0)
+#         self.fc1 = nn.Linear(32 * 5 * 5, 32)
+#         self.fc2 = nn.Linear(32, 10)
 
-    def forward(self, x):
-        x = x.view(-1, 1, 28, 28)
-        x = self.conv1(x)
-        x = torch.tanh(x)
-        x = nn.functional.avg_pool2d(x, 1)
-        x = self.conv2(x)
-        x = torch.tanh(x)
-        x = nn.functional.avg_pool2d(x, 1)
-        x = torch.flatten(x, 1)
-        x = self.fc1(x)
-        x = torch.tanh(x)
-        x = self.fc2(x)
-        return x
+#     def forward(self, x):
+#         x = x.view(-1, 1, 28, 28)
+#         x = self.conv1(x)
+#         x = torch.tanh(x)
+#         x = nn.functional.avg_pool2d(x, 1)
+#         x = self.conv2(x)
+#         x = torch.tanh(x)
+#         x = nn.functional.avg_pool2d(x, 1)
+#         x = torch.flatten(x, 1)
+#         x = self.fc1(x)
+#         x = torch.tanh(x)
+#         x = self.fc2(x)
+#         return x
 
 # Create model based on dataset selection
 def create_model():
@@ -218,9 +191,10 @@ def create_model():
         model = models.resnet50(weights=ResNet50_Weights.IMAGENET1K_V1).to(device)
         model.fc = nn.Linear(model.fc.in_features, 100).to(device)
     elif args.dataset == 'CIFAR10':
-        from torchvision.models import ResNet18_Weights
-        model = models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1).to(device)
-        model.fc = nn.Linear(model.fc.in_features, 10).to(device)
+        model = Cifar10FLNet().to(device)
+        # from torchvision.models import ResNet18_Weights
+        # model = models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1).to(device)
+        # model.fc = nn.Linear(model.fc.in_features, 10).to(device)
     else:  # MNIST
         model = ConvNet().to(device)
     model = DDP(model, device_ids=[args.rank % torch.cuda.device_count()])
