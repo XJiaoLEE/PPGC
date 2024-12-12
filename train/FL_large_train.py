@@ -99,13 +99,6 @@ def load_data():
 
             train_dataset = datasets.CIFAR100(root=data_path, train=True, download=True, transform=transform_train)
             test_dataset = datasets.CIFAR100(root=data_path, train=False, download=True, transform=transform_test)
-
-            # transform = transforms.Compose([
-            #     transforms.ToTensor(),
-            #     transforms.Normalize((0.5071, 0.4867, 0.4408), (0.2675, 0.2565, 0.2761))  # CIFAR-100 mean and std
-            # ])
-            # train_dataset = datasets.CIFAR100(root=data_path, train=True, download=True, transform=transform)
-            # test_dataset = datasets.CIFAR100(root=data_path, train=False, download=True, transform=transform)
         elif args.dataset == 'CIFAR10':
             LEARNING_RATE = 0.001
             transform_train = transforms.Compose([
@@ -161,28 +154,6 @@ def load_data():
         # return client_loaders, DataLoader(test_dataset, batch_size=BATCH_SIZE)
         return client_datasets, DataLoader(test_dataset, batch_size=BATCH_SIZE)
 
-# # Define ConvNet model for MNIST
-# class ConvNet(nn.Module):
-#     def __init__(self):
-#         super(ConvNet, self).__init__()
-#         self.conv1 = nn.Conv2d(1, 16, 8, 2, padding=2)
-#         self.conv2 = nn.Conv2d(16, 32, 4, 2, padding=0)
-#         self.fc1 = nn.Linear(32 * 5 * 5, 32)
-#         self.fc2 = nn.Linear(32, 10)
-
-#     def forward(self, x):
-#         x = x.view(-1, 1, 28, 28)
-#         x = self.conv1(x)
-#         x = torch.tanh(x)
-#         x = nn.functional.avg_pool2d(x, 1)
-#         x = self.conv2(x)
-#         x = torch.tanh(x)
-#         x = nn.functional.avg_pool2d(x, 1)
-#         x = torch.flatten(x, 1)
-#         x = self.fc1(x)
-#         x = torch.tanh(x)
-#         x = self.fc2(x)
-#         return x
 
 # Create model based on dataset selection
 def create_model():
@@ -285,7 +256,7 @@ def apply_global_mask(model, pruning_mask):
 
 
 # Train client function
-def train_client(global_model, rank, world_size, client_datasets, mechanism='BASELINE', out_bits=2):
+def train_client(global_model, global_optimizer, client_datasets, mechanism='BASELINE', out_bits=1):
     # Randomly select 50% of local clients
     total_local_clients = NUM_CLIENTS_PER_NODE  
     selected_clients = random.sample(range(total_local_clients), total_local_clients // 1)  # Randomly select half of the clients
@@ -293,6 +264,7 @@ def train_client(global_model, rank, world_size, client_datasets, mechanism='BAS
 
     # Create client models only once
     client_models = [create_model() for _ in range(NUM_CLIENTS_PER_NODE)]
+    optimizer = optim.SGD(model[0].parameters(), lr=LEARNING_RATE, momentum=0.9)
     client_gradients = []
 
     for client_idx in selected_clients:
@@ -300,10 +272,11 @@ def train_client(global_model, rank, world_size, client_datasets, mechanism='BAS
         # Apply global pruning mask before training
         if pruning_mask is not None:
             apply_global_mask(model, pruning_mask)  # Apply global mask to the client model
-        model.load_state_dict(global_model.state_dict())  # Load global model's parameters as initial parameters
+        model.load_state_dict(global_model.state_dict())  
+        optimizer.load_state_dict(global_optimizer.state_dict())
         model.train()
         # optimizer = optim.SGD(model.parameters(), lr=LEARNING_RATE, momentum=0.9)
-        optimizer = optim.SGD(model.parameters(), lr=LEARNING_RATE)
+        # optimizer = optim.SGD(model.parameters(), lr=LEARNING_RATE)
         criterion = nn.CrossEntropyLoss()
         client_loader = client_datasets[args.rank * NUM_CLIENTS_PER_NODE + client_idx]
         
@@ -362,33 +335,28 @@ def federated_learning(mechanism):
         apply_global_mask(global_model, pruning_mask)  # Apply global mask to the client model
     # 在创建 global_model 后，初始化优化器
     # global_optimizer = torch.optim.SGD(global_model.parameters(), lr=LEARNING_RATE)
-    global_optimizer = torch.optim.SGD(global_model.parameters(), lr=LEARNING_RATE,momentum=0.9)
-    # for group in global_optimizer.param_groups:
-    #     for p in group['params']:
-    #         print(f"Optimizer is managing parameter with id: {id(p)}")
+    global_optimizer = torch.optim.SGD(global_model.parameters(), lr=LEARNING_RATE, momentum=0.9)
+    scheduler = torch.optim.lr_scheduler.StepLR(global_optimizer, step_size=30, gamma=0.1)
 
     for round in range(NUM_ROUNDS):
         log_with_time(f"Round {round + 1}/{NUM_ROUNDS} started")
 
         # Train clients and collect their gradients
-        client_models_gradients = train_client(global_model, args.rank, args.world_size, client_datasets, args.mechanism, args.out_bits)
+        client_models_gradients = train_client(global_model, global_optimizer, client_datasets, args.mechanism, args.out_bits)
 
         # Synchronize all processes before aggregation
         dist.barrier()
-        aggregate_global_model(global_model.module, client_models_gradients, mechanism,global_optimizer)
+        aggregate_global_model(global_model.module, client_models_gradients, global_optimizer)
 
         # Test aggregated global model
         aggregated_accuracy = test_model(global_model, test_loader)
         log_with_time(f"Global model accuracy after aggregation: {aggregated_accuracy:.4f}")
-        # if round%10 == 0:
-        #     aggregated_accuracy = test_model(global_model, test_loader)
-        #     log_with_time(f"Global model accuracy after aggregation: {aggregated_accuracy:.4f}")
+
+        scheduler.step()
 
       
-def aggregate_global_model(global_model, client_models_gradients, mechanism,optimizer):
+def aggregate_global_model(global_model, client_models_gradients, optimizer):
     log_with_time("Aggregating global model from local gradients")
-    # print("len(client_models_gradients)",len(client_models_gradients))
-    # print("LEARNING_RATE",LEARNING_RATE)
     
     with torch.no_grad():
         # Collect gradients by named parameter to ensure consistency
@@ -410,39 +378,14 @@ def aggregate_global_model(global_model, client_models_gradients, mechanism,opti
                         print(f"Skipping aggregation for {grad_name} due to shape mismatch: "
                             f"{client_grad[grad_name].shape if grad_name in client_grad else 'not found'} vs {aggregated_grad.shape}")
                 param.grad = aggregated_grad
-                # .detach().clone()  # 确保梯度是叶子节点
-        # for name, param in global_model.named_parameters():
-        #     if param.requires_grad and param.grad is not None:
-        #         print(f"Parameter {name} gradient norm: {torch.norm(param.grad).item()}")
-
-        # 在参数更新部分使用 torch.no_grad()
-        # with torch.no_grad():
-        # 在调用 optimizer.step() 前后，只打印第一个需要更新梯度的层的参数
-        # first_printed = False  # 标志位，确保只打印第一个需要更新的层
-        # for name, param in global_model.named_parameters():
-        #     if param.requires_grad:
-        #         if not first_printed:
-        #             print(f"Before update {name}: {param.data[1,:5]}")  # 打印第一个需要更新梯度的参数
-        #             first_printed = True  # 只打印第一个需要更新的层
-
         # # 调用优化器进行参数更新
-        # optimizer.step()
-        # optimizer.zero_grad()
+        optimizer.step()
+        optimizer.zero_grad()
 
-        
         # Update global model parameters using the accumulated gradients
-        for param in global_model.parameters():
-            if param.requires_grad:
-                param.data -= LEARNING_RATE * param.grad
-
-        # 打印第一个需要更新梯度的层的更新后的值
-        # first_printed = False  # 重置标志位，重新打印第一个层的更新
-        # for name, param in global_model.named_parameters():
+        # for param in global_model.parameters():
         #     if param.requires_grad:
-        #         if not first_printed:
-        #             print(f"After update {name}: {param.data[1,:5]}")  # 打印第一个需要更新的参数
-        #             first_printed = True  # 只打印第一个需要更新的层
-
+        #         param.data -= LEARNING_RATE * param.grad
 
 
 # 运行联邦学习
