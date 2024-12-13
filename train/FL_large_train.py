@@ -264,7 +264,7 @@ def train_client(global_model, global_optimizer, client_datasets, mechanism='BAS
 
     # Create client models only once
     client_models = [create_model() for _ in range(NUM_CLIENTS_PER_NODE)]
-    optimizer = optim.SGD(client_models[0].parameters(), lr=0.01, momentum=0.9, weight_decay=0.0001)
+    optimizer = optim.SGD(client_models[0].parameters(), lr=LEARNING_RATE)
     client_gradients = []
 
     for client_idx in selected_clients:
@@ -335,8 +335,8 @@ def federated_learning(mechanism):
         apply_global_mask(global_model, pruning_mask)  # Apply global mask to the client model
     # 在创建 global_model 后，初始化优化器
     # global_optimizer = torch.optim.SGD(global_model.parameters(), lr=LEARNING_RATE)
-    global_optimizer = torch.optim.SGD(global_model.parameters(), lr=0.01, momentum=0.9, weight_decay=0.0001)
-    scheduler = torch.optim.lr_scheduler.StepLR(global_optimizer, step_size=300, gamma=0.1)
+    global_optimizer = torch.optim.SGD(global_model.parameters(), lr=LEARNING_RATE)
+    # scheduler = torch.optim.lr_scheduler.StepLR(global_optimizer, step_size=300, gamma=0.1)
 
     for round in range(NUM_ROUNDS):
         log_with_time(f"Round {round + 1}/{NUM_ROUNDS} started")
@@ -352,7 +352,7 @@ def federated_learning(mechanism):
         aggregated_accuracy = test_model(global_model, test_loader)
         log_with_time(f"Global model accuracy after aggregation: {aggregated_accuracy:.4f}")
 
-        scheduler.step()
+        # scheduler.step()
 
       
 def aggregate_global_model(global_model, client_models_gradients, optimizer):
