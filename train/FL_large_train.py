@@ -168,7 +168,7 @@ def create_model():
     else:  # MNIST
         model = ConvNet().to(device)
     model = DDP(model, device_ids=[args.rank % torch.cuda.device_count()])
-    generate_global_mask(model, pruning_ratio=0.0)
+    # generate_global_mask(model, pruning_ratio=0.0)
     return model
 
 # 客户端模型训练
@@ -290,7 +290,7 @@ def train_client(global_model, global_optimizer, client_datasets, mechanism='BAS
         for epoch in range(EPOCHS_PER_CLIENT):
             log_with_time(f"Client {args.rank * NUM_CLIENTS_PER_NODE + client_idx}, Training epoch {epoch + 1}")
             for step, (data, target) in enumerate(client_loader):
-                # log_with_time(f"Client {args.rank * NUM_CLIENTS_PER_NODE + client_idx}, Training step {step + 1}")
+                log_with_time(f"Client {args.rank * NUM_CLIENTS_PER_NODE + client_idx}, Training step {step + 1}")
                 data, target = data.to(device), target.to(device)
                 optimizer.zero_grad()
                 output = model(data)
