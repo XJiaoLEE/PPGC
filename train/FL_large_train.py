@@ -101,19 +101,23 @@ def load_data():
             test_dataset = datasets.CIFAR100(root=data_path, train=False, download=True, transform=transform_test)
         elif args.dataset == 'CIFAR10':
             LEARNING_RATE = 0.001
+            
+            # CIFAR10的均值和标准差
+            CIFAR_MEAN = [0.49139968, 0.48215827, 0.44653124]
+            CIFAR_STD = [0.24703233, 0.24348505, 0.26158768]
+
+            # 训练集数据预处理
             transform_train = transforms.Compose([
-                transforms.RandomResizedCrop(32, scale=(0.8, 1.0)),  # 随机裁剪并调整到64x64大小
-                transforms.RandomHorizontalFlip(),                    # 随机水平翻转
-                transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),  # 颜色抖动
+                transforms.RandomCrop(32, padding=4),  # 随机裁剪并填充至32x32
+                transforms.RandomHorizontalFlip(),     # 随机水平翻转
                 transforms.ToTensor(),
-                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # 使用ImageNet的均值和标准差
+                transforms.Normalize(mean=CIFAR_MEAN, std=CIFAR_STD)  # 使用CIFAR10的均值和标准差
             ])
 
             # 测试集数据预处理
             transform_test = transforms.Compose([
-                transforms.Resize((32, 32)),  # 将测试集图像调整为64x64大小
                 transforms.ToTensor(),
-                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+                transforms.Normalize(mean=CIFAR_MEAN, std=CIFAR_STD)  # 使用CIFAR10的均值和标准差
             ])
 
             # 加载训练集和测试集
