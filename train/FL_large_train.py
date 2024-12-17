@@ -384,13 +384,13 @@ def aggregate_global_model(global_model, client_models_gradients, optimizer):
                             f"{client_grad[grad_name].shape if grad_name in client_grad else 'not found'} vs {aggregated_grad.shape}")
                 param.grad = aggregated_grad
         # # 调用优化器进行参数更新
-        optimizer.step()
-        optimizer.zero_grad()
+        # optimizer.step()
+        # optimizer.zero_grad()
 
         # Update global model parameters using the accumulated gradients
-        # for param in global_model.parameters():
-        #     if param.requires_grad:
-        #         param.data -= LEARNING_RATE * param.grad
+        for param in global_model.parameters():
+            if param.requires_grad:
+                param.data -= LEARNING_RATE * param.grad
 
 
 # 运行联邦学习
