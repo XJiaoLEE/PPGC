@@ -261,7 +261,7 @@ def apply_global_mask(model, pruning_mask):
 
 
 # Train client function
-def train_client(global_model, global_optimizer, client_datasets, mechanism='BASELINE', out_bits=1):
+def train_client(global_model, global_optimizer, client_datasets, mechanism='BASELINE', out_bits=1, test_loader):
     # Randomly select 50% of local clients
     total_local_clients = NUM_CLIENTS_PER_NODE  
     selected_clients = random.sample(range(total_local_clients), total_local_clients // 2)  # Randomly select half of the clients
@@ -301,7 +301,8 @@ def train_client(global_model, global_optimizer, client_datasets, mechanism='BAS
                 output = model(data)
                 loss = criterion(output, target)
                 loss.backward()
-                
+                optimizer.step()
+            
                 # Accumulate gradients after each step
                 if accumulated_gradients is None:
                     accumulated_gradients = {name: torch.zeros_like(param.grad) for name, param in model.named_parameters() if param.requires_grad}
@@ -309,7 +310,9 @@ def train_client(global_model, global_optimizer, client_datasets, mechanism='BAS
                 for name, param in model.named_parameters():
                     if param.requires_grad:
                         accumulated_gradients[name] += param.grad / (EPOCHS_PER_CLIENT*len(client_loader)*len(selected_clients))
-        
+        aggregated_accuracy = test_model(global_model, test_loader)
+        log_with_time(f"Client model {client_idx} accuracy after aggregation: {aggregated_accuracy:.4f}")
+
         # client_gradients.append(accumulated_gradients)
 
     return accumulated_gradients
@@ -347,15 +350,15 @@ def federated_learning(mechanism):
         log_with_time(f"Round {round + 1}/{NUM_ROUNDS} started")
 
         # Train clients and collect their gradients
-        client_models_gradients = train_client(global_model, global_optimizer, client_datasets, args.mechanism, args.out_bits)
+        client_models_gradients = train_client(global_model, global_optimizer, client_datasets, args.mechanism, args.out_bits, test_loader)
 
         # Synchronize all processes before aggregation
-        dist.barrier()
-        aggregate_global_model(global_model.module, client_models_gradients, global_optimizer)
+        # dist.barrier()
+        # aggregate_global_model(global_model.module, client_models_gradients, global_optimizer)
 
-        # Test aggregated global model
-        aggregated_accuracy = test_model(global_model, test_loader)
-        log_with_time(f"Global model accuracy after aggregation: {aggregated_accuracy:.4f}")
+        # # Test aggregated global model
+        # aggregated_accuracy = test_model(global_model, test_loader)
+        # log_with_time(f"Global model accuracy after aggregation: {aggregated_accuracy:.4f}")
 
         scheduler.step()
 
