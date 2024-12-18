@@ -308,7 +308,7 @@ def train_client(global_model, global_optimizer, client_datasets, mechanism='BAS
                 
                 for name, param in model.named_parameters():
                     if param.requires_grad:
-                        accumulated_gradients[name] += param.grad / (EPOCHS_PER_CLIENT*len(client_loader))
+                        accumulated_gradients[name] += param.grad / (EPOCHS_PER_CLIENT*len(client_loader)*len(selected_clients))
         
         # client_gradients.append(accumulated_gradients)
 
@@ -364,10 +364,10 @@ def aggregate_global_model(global_model, client_models_gradients, optimizer):
     log_with_time("Aggregating global model from local gradients")
     
     with torch.no_grad():
-        dist.all_reduce(client_models_gradients, op=dist.ReduceOp.SUM)
-        dist.barrier()
         for name, param in global_model.named_parameters():
             grad_name = "module." + name
+            dist.all_reduce(client_models_gradients[grad_name], op=dist.ReduceOp.SUM)
+            dist.barrier()
             param.grad = client_models_gradients[grad_name]/args.world_size
         
         # Collect gradients by named parameter to ensure consistency
