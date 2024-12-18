@@ -261,7 +261,7 @@ def apply_global_mask(model, pruning_mask):
 
 
 # Train client function
-def train_client(global_model, global_optimizer, client_datasets, mechanism='BASELINE', out_bits=1, test_loader):
+def train_client(global_model, global_optimizer, client_datasets, test_loader, mechanism='BASELINE', out_bits=1):
     # Randomly select 50% of local clients
     total_local_clients = NUM_CLIENTS_PER_NODE  
     selected_clients = random.sample(range(total_local_clients), total_local_clients // 2)  # Randomly select half of the clients
@@ -350,7 +350,7 @@ def federated_learning(mechanism):
         log_with_time(f"Round {round + 1}/{NUM_ROUNDS} started")
 
         # Train clients and collect their gradients
-        client_models_gradients = train_client(global_model, global_optimizer, client_datasets, args.mechanism, args.out_bits, test_loader)
+        client_models_gradients = train_client(global_model, global_optimizer, client_datasets, test_loader, args.mechanism, args.out_bits)
 
         # Synchronize all processes before aggregation
         # dist.barrier()
