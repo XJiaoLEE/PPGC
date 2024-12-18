@@ -268,7 +268,7 @@ def train_client(global_model, global_optimizer, client_datasets, test_loader, m
     gradient_compressor = GradientCompressor(mechanism, sparsification_ratio, epsilon, out_bits)
     # Create client models only once
     client_models = [create_model() for _ in range(NUM_CLIENTS_PER_NODE)]
-    optimizer = optim.SGD(client_models[0].parameters(), lr=LEARNING_RATE, momentum=0.9)
+    # optimizer = optim.SGD(client_models[0].parameters(), lr=LEARNING_RATE, momentum=0.9)
     # client_gradients = []
     accumulated_gradients = None
 
@@ -280,7 +280,7 @@ def train_client(global_model, global_optimizer, client_datasets, test_loader, m
         # model.load_state_dict(global_model.state_dict())  
         # optimizer.load_state_dict(global_optimizer.state_dict())
         model.train()
-        # optimizer = optim.SGD(model.parameters(), lr=LEARNING_RATE, momentum=0.9)
+        optimizer = optim.SGD(model.parameters(), lr=LEARNING_RATE, momentum=0.9)
         # optimizer = optim.SGD(model.parameters(), lr=LEARNING_RATE)
         criterion = nn.CrossEntropyLoss()
         client_loader = client_datasets[args.rank * NUM_CLIENTS_PER_NODE + client_idx]
