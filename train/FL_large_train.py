@@ -360,7 +360,7 @@ def federated_learning(mechanism):
         # aggregated_accuracy = test_model(global_model, test_loader)
         # log_with_time(f"Global model accuracy after aggregation: {aggregated_accuracy:.4f}")
 
-        scheduler.step()
+        # scheduler.step()
 
       
 def aggregate_global_model(global_model, client_models_gradients, optimizer):
