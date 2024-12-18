@@ -269,7 +269,7 @@ def train_client(global_model, global_optimizer, client_datasets, mechanism='BAS
 
     # Create client models only once
     client_models = [create_model() for _ in range(NUM_CLIENTS_PER_NODE)]
-    optimizers = [optim.SGD(client_models[_].parameters(), lr=LEARNING_RATE) for _ in range(NUM_CLIENTS_PER_NODE)]
+    optimizers = [optim.SGD(client_models[_].parameters(), lr=LEARNING_RATE, momentum=0.9) for _ in range(NUM_CLIENTS_PER_NODE)]
     client_gradients = []
 
     for client_idx in selected_clients:
@@ -340,7 +340,7 @@ def federated_learning(mechanism):
         apply_global_mask(global_model, pruning_mask)  # Apply global mask to the client model
     # 在创建 global_model 后，初始化优化器
     # global_optimizer = torch.optim.SGD(global_model.parameters(), lr=LEARNING_RATE)
-    global_optimizer = torch.optim.SGD(global_model.parameters(), lr=LEARNING_RATE)
+    global_optimizer = torch.optim.SGD(global_model.parameters(), lr=LEARNING_RATE, momentum=0.9)
     # scheduler = torch.optim.lr_scheduler.StepLR(global_optimizer, step_size=300, gamma=0.1)
 
     for round in range(NUM_ROUNDS):
@@ -384,13 +384,13 @@ def aggregate_global_model(global_model, client_models_gradients, optimizer):
                             f"{client_grad[grad_name].shape if grad_name in client_grad else 'not found'} vs {aggregated_grad.shape}")
                 param.grad = aggregated_grad
         # # 调用优化器进行参数更新
-        # optimizer.step()
-        # optimizer.zero_grad()
+        optimizer.step()
+        optimizer.zero_grad()
 
         # Update global model parameters using the accumulated gradients
-        for param in global_model.parameters():
-            if param.requires_grad:
-                param.data -= LEARNING_RATE * param.grad
+        # for param in global_model.parameters():
+        #     if param.requires_grad:
+        #         param.data -= LEARNING_RATE * param.grad
 
 
 # 运行联邦学习
