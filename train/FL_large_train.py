@@ -280,8 +280,6 @@ def train_client(global_model, global_optimizer, client_datasets, mechanism='BAS
         model.load_state_dict(global_model.state_dict())  
         optimizers[client_idx].load_state_dict(global_optimizer.state_dict())
         model.train()
-        # optimizer = optim.SGD(model.parameters(), lr=LEARNING_RATE, momentum=0.9)
-        # optimizer = optim.SGD(model.parameters(), lr=LEARNING_RATE)
         criterion = nn.CrossEntropyLoss()
         client_loader = client_datasets[args.rank * NUM_CLIENTS_PER_NODE + client_idx]
         
@@ -332,16 +330,13 @@ def test_model(model, test_loader):
 
 # Federated learning function
 def federated_learning(mechanism):
-    # Load data once before training
     client_datasets, test_loader = load_data()
     global_model = create_model()
     # Apply global pruning mask before training
     if pruning_mask is not None:
-        apply_global_mask(global_model, pruning_mask)  # Apply global mask to the client model
-    # 在创建 global_model 后，初始化优化器
-    # global_optimizer = torch.optim.SGD(global_model.parameters(), lr=LEARNING_RATE)
+        apply_global_mask(global_model, pruning_mask)  
     global_optimizer = torch.optim.SGD(global_model.parameters(), lr=LEARNING_RATE, momentum=0.9)
-    # scheduler = torch.optim.lr_scheduler.StepLR(global_optimizer, step_size=300, gamma=0.1)
+    scheduler = torch.optim.lr_scheduler.StepLR(global_optimizer, step_size=10, gamma=0.994)
 
     for round in range(NUM_ROUNDS):
         log_with_time(f"Round {round + 1}/{NUM_ROUNDS} started")
@@ -349,23 +344,19 @@ def federated_learning(mechanism):
         # Train clients and collect their gradients
         client_models_gradients = train_client(global_model, global_optimizer, client_datasets, args.mechanism, args.out_bits)
 
-        # Synchronize all processes before aggregation
         dist.barrier()
         aggregate_global_model(global_model.module, client_models_gradients, global_optimizer)
 
-        # Test aggregated global model
         aggregated_accuracy = test_model(global_model, test_loader)
         log_with_time(f"Global model accuracy after aggregation: {aggregated_accuracy:.4f}")
 
-        # scheduler.step()
+        scheduler.step()
 
       
 def aggregate_global_model(global_model, client_models_gradients, optimizer):
     log_with_time("Aggregating global model from local gradients")
     
     with torch.no_grad():
-        # Collect gradients by named parameter to ensure consistency
-        # named_parameters = list(global_model.named_parameters())
         for name, param in global_model.named_parameters():
             if param.requires_grad:
                 aggregated_grad = torch.zeros_like(param.data)
@@ -373,8 +364,6 @@ def aggregate_global_model(global_model, client_models_gradients, optimizer):
                     # 使用添加 'module.' 前缀的名称来匹配
                     grad_name = "module." + name
                     if grad_name in client_grad and client_grad[grad_name].shape == aggregated_grad.shape:
-                        # print(f"Matching aggregation for {name} : "
-                        #     f"{client_grad[name].shape if name in client_grad else 'not found'} vs {aggregated_grad.shape}")
                         dist.all_reduce(client_grad[grad_name], op=dist.ReduceOp.SUM)
                         dist.barrier()
                         client_grad[grad_name] /= (args.world_size * len(client_models_gradients))
@@ -386,11 +375,6 @@ def aggregate_global_model(global_model, client_models_gradients, optimizer):
         # # 调用优化器进行参数更新
         optimizer.step()
         optimizer.zero_grad()
-
-        # Update global model parameters using the accumulated gradients
-        # for param in global_model.parameters():
-        #     if param.requires_grad:
-        #         param.data -= LEARNING_RATE * param.grad
 
 
 # 运行联邦学习
