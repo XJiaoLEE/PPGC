@@ -314,6 +314,14 @@ def train_client(global_model, global_optimizer, client_datasets, test_loader, m
 
         # client_gradients.append(accumulated_gradients)
 
+    for name, param in global_model.named_parameters():
+        if param.requires_grad:
+            global_name = "module" + name
+            global_model[name]=accumulated_gradients[global_name]
+    global_optimizer.step()
+    aggregated_accuracy = test_model(global_model, test_loader)
+    log_with_time(f"Global accuracy after aggregation: {aggregated_accuracy:.4f}")
+
     return accumulated_gradients
     # return client_gradients
 
