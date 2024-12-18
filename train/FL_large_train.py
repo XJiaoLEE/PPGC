@@ -266,7 +266,7 @@ def train_client(global_model, global_optimizer, client_datasets, mechanism='BAS
     total_local_clients = NUM_CLIENTS_PER_NODE  
     selected_clients = random.sample(range(total_local_clients), total_local_clients // 1)  # Randomly select half of the clients
     gradient_compressor = GradientCompressor(mechanism, sparsification_ratio, epsilon, out_bits)
-
+    print("len(selected_clients)",len(selected_clients))
     # Create client models only once
     client_models = [create_model() for _ in range(NUM_CLIENTS_PER_NODE)]
     optimizer = optim.SGD(client_models[0].parameters(), lr=LEARNING_RATE, momentum=0.9)
