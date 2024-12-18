@@ -25,10 +25,10 @@ print(f"CUDA version: {torch.version.cuda}")
 # 参数设置
 NUM_ROUNDS = 3000          # 联邦学习轮数
 EPOCHS_PER_CLIENT = 1    # 每轮客户端本地训练次数 4
-BATCH_SIZE = 300          # 批大小32 300 FOR MNIST 200 FOR CIFAR100 125 FOR CIFAR10
+BATCH_SIZE = 64          # 批大小32 300 FOR MNIST 200 FOR CIFAR100 125 FOR CIFAR10
 LEARNING_RATE = 0.01    # 学习率
 epsilon = 0.0            # DP 使用的 epsilon 值
-NUM_CLIENTS_PER_NODE = 10  # 每个主机上的客户端数量125 
+NUM_CLIENTS_PER_NODE = 2  # 每个主机上的客户端数量125 
 
 # 检测是否有可用的 GPU，如果没有则使用 CPU
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -261,26 +261,26 @@ def apply_global_mask(model, pruning_mask):
 
 
 # Train client function
-def train_client(global_model, global_optimizer, client_datasets, test_loader, mechanism='BASELINE', out_bits=1):
+def train_client(global_model, global_optimizer, client_datasets, mechanism='BASELINE', out_bits=1):
     # Randomly select 50% of local clients
     total_local_clients = NUM_CLIENTS_PER_NODE  
     selected_clients = random.sample(range(total_local_clients), total_local_clients // 1)  # Randomly select half of the clients
     gradient_compressor = GradientCompressor(mechanism, sparsification_ratio, epsilon, out_bits)
+
     # Create client models only once
     client_models = [create_model() for _ in range(NUM_CLIENTS_PER_NODE)]
-    # optimizer = optim.SGD(client_models[0].parameters(), lr=LEARNING_RATE, momentum=0.9)
-    # client_gradients = []
-    accumulated_gradients = None
+    optimizers = [optim.SGD(client_models[_].parameters(), lr=LEARNING_RATE) for _ in range(NUM_CLIENTS_PER_NODE)]
+    client_gradients = []
 
     for client_idx in selected_clients:
         model = client_models[client_idx]
         # Apply global pruning mask before training
         if pruning_mask is not None:
             apply_global_mask(model, pruning_mask)  # Apply global mask to the client model
-        # model.load_state_dict(global_model.state_dict())  
-        # optimizer.load_state_dict(global_optimizer.state_dict())
+        model.load_state_dict(global_model.state_dict())  
+        optimizers[client_idx].load_state_dict(global_optimizer.state_dict())
         model.train()
-        optimizer = optim.SGD(model.parameters(), lr=LEARNING_RATE, momentum=0.9)
+        # optimizer = optim.SGD(model.parameters(), lr=LEARNING_RATE, momentum=0.9)
         # optimizer = optim.SGD(model.parameters(), lr=LEARNING_RATE)
         criterion = nn.CrossEntropyLoss()
         client_loader = client_datasets[args.rank * NUM_CLIENTS_PER_NODE + client_idx]
@@ -290,39 +290,30 @@ def train_client(global_model, global_optimizer, client_datasets, test_loader, m
             if param.requires_grad:
                 param.register_hook(gradient_compressor.gradient_hook)
         
+        accumulated_gradients = None
         # Train the model for one epoch
         for epoch in range(EPOCHS_PER_CLIENT):
             log_with_time(f"Client {args.rank * NUM_CLIENTS_PER_NODE + client_idx}, Training epoch {epoch + 1}")
             for step, (data, target) in enumerate(client_loader):
                 log_with_time(f"Client {args.rank * NUM_CLIENTS_PER_NODE + client_idx}, Training step {step + 1}")
                 data, target = data.to(device), target.to(device)
-                optimizer.zero_grad()
+                optimizers[client_idx].zero_grad()
                 output = model(data)
                 loss = criterion(output, target)
                 loss.backward()
-            
+                
                 # Accumulate gradients after each step
                 if accumulated_gradients is None:
                     accumulated_gradients = {name: torch.zeros_like(param.grad) for name, param in model.named_parameters() if param.requires_grad}
                 
                 for name, param in model.named_parameters():
                     if param.requires_grad:
-                        accumulated_gradients[name] += param.grad / (EPOCHS_PER_CLIENT*len(client_loader)*len(selected_clients))
-                optimizer.step()
-        aggregated_accuracy = test_model(model, test_loader)
-        log_with_time(f"Client model {client_idx} accuracy after aggregation: {aggregated_accuracy:.4f}")
+                        accumulated_gradients[name] += param.grad / (EPOCHS_PER_CLIENT*len(client_loader))
+        
+        client_gradients.append(accumulated_gradients)
 
-        # client_gradients.append(accumulated_gradients)
 
-    for name, param in global_model.named_parameters():
-        if param.requires_grad:
-            param.data=accumulated_gradients[name]
-    global_optimizer.step()
-    aggregated_accuracy = test_model(global_model, test_loader)
-    log_with_time(f"Global accuracy after aggregation: {aggregated_accuracy:.4f}")
-
-    return accumulated_gradients
-    # return client_gradients
+    return client_gradients
 
 # 测试模型准确性
 def test_model(model, test_loader):
@@ -349,22 +340,22 @@ def federated_learning(mechanism):
         apply_global_mask(global_model, pruning_mask)  # Apply global mask to the client model
     # 在创建 global_model 后，初始化优化器
     # global_optimizer = torch.optim.SGD(global_model.parameters(), lr=LEARNING_RATE)
-    global_optimizer = torch.optim.SGD(global_model.parameters(), lr=LEARNING_RATE, momentum=0.9)
-    scheduler = torch.optim.lr_scheduler.StepLR(global_optimizer, step_size=10, gamma=0.992)
+    global_optimizer = torch.optim.SGD(global_model.parameters(), lr=LEARNING_RATE)
+    # scheduler = torch.optim.lr_scheduler.StepLR(global_optimizer, step_size=300, gamma=0.1)
 
     for round in range(NUM_ROUNDS):
         log_with_time(f"Round {round + 1}/{NUM_ROUNDS} started")
 
         # Train clients and collect their gradients
-        client_models_gradients = train_client(global_model, global_optimizer, client_datasets, test_loader, args.mechanism, args.out_bits)
+        client_models_gradients = train_client(global_model, global_optimizer, client_datasets, args.mechanism, args.out_bits)
 
         # Synchronize all processes before aggregation
-        # dist.barrier()
-        # aggregate_global_model(global_model.module, client_models_gradients, global_optimizer)
+        dist.barrier()
+        aggregate_global_model(global_model.module, client_models_gradients, global_optimizer)
 
-        # # Test aggregated global model
-        # aggregated_accuracy = test_model(global_model, test_loader)
-        # log_with_time(f"Global model accuracy after aggregation: {aggregated_accuracy:.4f}")
+        # Test aggregated global model
+        aggregated_accuracy = test_model(global_model, test_loader)
+        log_with_time(f"Global model accuracy after aggregation: {aggregated_accuracy:.4f}")
 
         # scheduler.step()
 
@@ -373,39 +364,33 @@ def aggregate_global_model(global_model, client_models_gradients, optimizer):
     log_with_time("Aggregating global model from local gradients")
     
     with torch.no_grad():
-        for name, param in global_model.named_parameters():
-            grad_name = "module." + name
-            dist.all_reduce(client_models_gradients[grad_name], op=dist.ReduceOp.SUM)
-            dist.barrier()
-            param.grad = client_models_gradients[grad_name]/args.world_size
-        
         # Collect gradients by named parameter to ensure consistency
         # named_parameters = list(global_model.named_parameters())
-        # for name, param in global_model.named_parameters():
-        #     if param.requires_grad:
-        #         aggregated_grad = torch.zeros_like(param.data)
-        #         for client_grad in client_models_gradients:
-        #             # 使用添加 'module.' 前缀的名称来匹配
-        #             grad_name = "module." + name
-        #             if grad_name in client_grad and client_grad[grad_name].shape == aggregated_grad.shape:
-        #                 # print(f"Matching aggregation for {name} : "
-        #                 #     f"{client_grad[name].shape if name in client_grad else 'not found'} vs {aggregated_grad.shape}")
-        #                 dist.all_reduce(client_grad[grad_name], op=dist.ReduceOp.SUM)
-        #                 dist.barrier()
-        #                 client_grad[grad_name] /= (args.world_size * len(client_models_gradients))
-        #                 aggregated_grad.add_(client_grad[grad_name])
-        #             else:
-        #                 print(f"Skipping aggregation for {grad_name} due to shape mismatch: "
-        #                     f"{client_grad[grad_name].shape if grad_name in client_grad else 'not found'} vs {aggregated_grad.shape}")
-        #         param.grad = aggregated_grad
-        # 调用优化器进行参数更新
-        optimizer.step()
-        optimizer.zero_grad()
+        for name, param in global_model.named_parameters():
+            if param.requires_grad:
+                aggregated_grad = torch.zeros_like(param.data)
+                for client_grad in client_models_gradients:
+                    # 使用添加 'module.' 前缀的名称来匹配
+                    grad_name = "module." + name
+                    if grad_name in client_grad and client_grad[grad_name].shape == aggregated_grad.shape:
+                        # print(f"Matching aggregation for {name} : "
+                        #     f"{client_grad[name].shape if name in client_grad else 'not found'} vs {aggregated_grad.shape}")
+                        dist.all_reduce(client_grad[grad_name], op=dist.ReduceOp.SUM)
+                        dist.barrier()
+                        client_grad[grad_name] /= (args.world_size * len(client_models_gradients))
+                        aggregated_grad.add_(client_grad[grad_name])
+                    else:
+                        print(f"Skipping aggregation for {grad_name} due to shape mismatch: "
+                            f"{client_grad[grad_name].shape if grad_name in client_grad else 'not found'} vs {aggregated_grad.shape}")
+                param.grad = aggregated_grad
+        # # 调用优化器进行参数更新
+        # optimizer.step()
+        # optimizer.zero_grad()
 
         # Update global model parameters using the accumulated gradients
-        # for param in global_model.parameters():
-        #     if param.requires_grad:
-        #         param.data -= LEARNING_RATE * param.grad
+        for param in global_model.parameters():
+            if param.requires_grad:
+                param.data -= LEARNING_RATE * param.grad
 
 
 # 运行联邦学习
