@@ -278,8 +278,8 @@ def train_client(global_model, global_optimizer, client_datasets, test_loader, m
         # Apply global pruning mask before training
         if pruning_mask is not None:
             apply_global_mask(model, pruning_mask)  # Apply global mask to the client model
-        model.load_state_dict(global_model.state_dict())  
-        optimizer.load_state_dict(global_optimizer.state_dict())
+        # model.load_state_dict(global_model.state_dict())  
+        # optimizer.load_state_dict(global_optimizer.state_dict())
         model.train()
         # optimizer = optim.SGD(model.parameters(), lr=LEARNING_RATE, momentum=0.9)
         # optimizer = optim.SGD(model.parameters(), lr=LEARNING_RATE)
