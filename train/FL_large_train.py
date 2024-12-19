@@ -58,7 +58,7 @@ if epsilon > 0 :
     if mechanism == 'BASELINE' :
         mechanism = 'LDP-FL'
 if args.dataset != 'MNIST':
-    LEARNING_RATE = 0.04
+    LEARNING_RATE = 0.001
 # 初始化进程组
 dist.init_process_group(backend=args.dist_backend, init_method=args.dist_url, world_size=args.world_size, rank=args.rank)
 
@@ -364,7 +364,7 @@ def federated_learning(mechanism):
         aggregated_accuracy = test_model(global_model, test_loader)
         log_with_time(f"Global model accuracy after aggregation: {aggregated_accuracy:.4f}")
 
-        scheduler.step()
+        # scheduler.step()
 
       
 def aggregate_global_model(global_model, client_models_gradients, optimizer):
