@@ -58,7 +58,7 @@ if epsilon > 0 :
     if mechanism == 'BASELINE' :
         mechanism = 'LDP-FL'
 if args.dataset != 'MNIST':
-    LEARNING_RATE = 0.005
+    LEARNING_RATE = 0.04
 # 初始化进程组
 dist.init_process_group(backend=args.dist_backend, init_method=args.dist_url, world_size=args.world_size, rank=args.rank)
 
@@ -83,7 +83,7 @@ def load_data():
     if train_dataset is None or test_dataset is None:
         data_path = './data'
         if args.dataset == 'CIFAR100':
-            LEARNING_RATE = 0.001
+            # LEARNING_RATE = 0.001
             transform_train = transforms.Compose([
                 transforms.RandomResizedCrop(224, scale=(0.8, 1.0)),  # 随机裁剪并调整到64x64大小
                 transforms.RandomHorizontalFlip(),                    # 随机水平翻转
@@ -100,7 +100,7 @@ def load_data():
             train_dataset = datasets.CIFAR100(root=data_path, train=True, download=True, transform=transform_train)
             test_dataset = datasets.CIFAR100(root=data_path, train=False, download=True, transform=transform_test)
         elif args.dataset == 'CIFAR10':
-            LEARNING_RATE = 0.04
+            # LEARNING_RATE = 0.04
             
             # CIFAR10的均值和标准差
             CIFAR_MEAN = [0.49139968, 0.48215827, 0.44653124]
