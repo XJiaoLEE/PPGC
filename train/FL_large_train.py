@@ -308,7 +308,7 @@ def train_client(global_model, global_optimizer, client_datasets, test_loader, m
                 
                 for name, param in model.named_parameters():
                     if param.requires_grad:
-                        print("if param.requires_grad:",name,param.grad)
+                        # print("if param.requires_grad:",name,param.grad)
                         accumulated_gradients[name] += param.grad / (EPOCHS_PER_CLIENT*len(client_loader))
                 print("accumulated_gradients[name]",accumulated_gradients)
                 optimizer.step()
