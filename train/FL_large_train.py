@@ -274,11 +274,13 @@ def train_client(global_model, global_optimizer, client_datasets, test_loader, m
 
     for client_idx in selected_clients:
         model = client_models[client_idx]
+        optimizer = optimizers[client_idx]
         # Apply global pruning mask before training
         if pruning_mask is not None:
             apply_global_mask(model, pruning_mask)  # Apply global mask to the client model
         model.load_state_dict(global_model.state_dict())  
-        optimizers[client_idx].load_state_dict(global_optimizer.state_dict())
+        optimizer.load_state_dict(global_optimizer.state_dict())
+        print("optimizer.learning rate", optimizer.__getattribute__(LEARNING_RATE))
         model.train()
         criterion = nn.CrossEntropyLoss()
         client_loader = client_datasets[args.rank * NUM_CLIENTS_PER_NODE + client_idx]
@@ -295,7 +297,7 @@ def train_client(global_model, global_optimizer, client_datasets, test_loader, m
             for step, (data, target) in enumerate(client_loader):
                 log_with_time(f"Client {args.rank * NUM_CLIENTS_PER_NODE + client_idx}, Training step {step + 1}")
                 data, target = data.to(device), target.to(device)
-                optimizers[client_idx].zero_grad()
+                optimizer.zero_grad()
                 output = model(data)
                 loss = criterion(output, target)
                 loss.backward()
@@ -311,7 +313,7 @@ def train_client(global_model, global_optimizer, client_datasets, test_loader, m
         for name, param in model.named_parameters():
             if param.requires_grad:
                 param.data = accumulated_gradients[name]
-        optimizers[client_idx].step()
+        optimizer.step()
         aggregated_accuracy = test_model(model, test_loader)
         log_with_time(f"Client model {client_idx} accuracy after aggregation: {aggregated_accuracy:.4f}")        
         client_gradients.append(accumulated_gradients)
