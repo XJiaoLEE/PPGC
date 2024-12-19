@@ -261,7 +261,7 @@ def apply_global_mask(model, pruning_mask):
 
 
 # Train client function
-def train_client(global_model, global_optimizer, client_datasets, mechanism='BASELINE', out_bits=1):
+def train_client(global_model, global_optimizer, client_datasets, test_loader, mechanism='BASELINE', out_bits=1):
     # Randomly select 50% of local clients
     total_local_clients = NUM_CLIENTS_PER_NODE  
     selected_clients = random.sample(range(total_local_clients), total_local_clients // 1)  # Randomly select half of the clients
@@ -307,7 +307,9 @@ def train_client(global_model, global_optimizer, client_datasets, mechanism='BAS
                 for name, param in model.named_parameters():
                     if param.requires_grad:
                         accumulated_gradients[name] += param.grad / (EPOCHS_PER_CLIENT*len(client_loader))
-        
+                optimizers[client_idx].step()
+        aggregated_accuracy = test_model(model, test_loader)
+        log_with_time(f"Client model {client_idx} accuracy after aggregation: {aggregated_accuracy:.4f}")        
         client_gradients.append(accumulated_gradients)
 
 
@@ -342,7 +344,7 @@ def federated_learning(mechanism):
         log_with_time(f"Round {round + 1}/{NUM_ROUNDS} started")
 
         # Train clients and collect their gradients
-        client_models_gradients = train_client(global_model, global_optimizer, client_datasets, args.mechanism, args.out_bits)
+        client_models_gradients = train_client(global_model, global_optimizer, client_datasets, test_loader, args.mechanism, args.out_bits)
 
         dist.barrier()
         aggregate_global_model(global_model.module, client_models_gradients, global_optimizer)
