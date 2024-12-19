@@ -58,7 +58,7 @@ if epsilon > 0 :
     if mechanism == 'BASELINE' :
         mechanism = 'LDP-FL'
 if args.dataset != 'MNIST':
-    LEARNING_RATE = 0.001
+    LEARNING_RATE = 0.005
 # 初始化进程组
 dist.init_process_group(backend=args.dist_backend, init_method=args.dist_url, world_size=args.world_size, rank=args.rank)
 
@@ -315,13 +315,13 @@ def train_client(global_model, global_optimizer, client_datasets, test_loader, m
                 # aggregated_accuracy = test_model(model, test_loader)
                 # log_with_time(f"Client model {client_idx}+{epoch}+ {step} accuracy after aggregation: {aggregated_accuracy:.4f}")        
         
-        for name, param in model.named_parameters():
-            if param.requires_grad:
-                param.data = accumulated_gradients[name]
-        # print("avg accumulated_gradients[name]",accumulated_gradients)
-        optimizer.step()
-        aggregated_accuracy = test_model(model, test_loader)
-        log_with_time(f"Client model {client_idx} accuracy after aggregation: {aggregated_accuracy:.4f}")        
+        # for name, param in model.named_parameters():
+        #     if param.requires_grad:
+        #         param.data = accumulated_gradients[name]
+        # # print("avg accumulated_gradients[name]",accumulated_gradients)
+        # optimizer.step()
+        # aggregated_accuracy = test_model(model, test_loader)
+        # log_with_time(f"Client model {client_idx} accuracy after aggregation: {aggregated_accuracy:.4f}")        
         client_gradients.append(accumulated_gradients)
 
 
