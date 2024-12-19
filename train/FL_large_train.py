@@ -280,7 +280,7 @@ def train_client(global_model, global_optimizer, client_datasets, test_loader, m
             apply_global_mask(model, pruning_mask)  # Apply global mask to the client model
         model.load_state_dict(global_model.state_dict())  
         optimizer.load_state_dict(global_optimizer.state_dict())
-        print("optimizer.learning rate", optimizer.__getattribute__(LEARNING_RATE))
+        print("optimizer.learning rate", optimizer.__getattribute__('param_groups')[0]['lr'])
         model.train()
         criterion = nn.CrossEntropyLoss()
         client_loader = client_datasets[args.rank * NUM_CLIENTS_PER_NODE + client_idx]
