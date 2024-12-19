@@ -318,7 +318,7 @@ def train_client(global_model, global_optimizer, client_datasets, test_loader, m
         for name, param in model.named_parameters():
             if param.requires_grad:
                 param.data = accumulated_gradients[name]
-        print("avg accumulated_gradients[name]",accumulated_gradients)
+        # print("avg accumulated_gradients[name]",accumulated_gradients)
         optimizer.step()
         aggregated_accuracy = test_model(model, test_loader)
         log_with_time(f"Client model {client_idx} accuracy after aggregation: {aggregated_accuracy:.4f}")        
