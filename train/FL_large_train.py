@@ -310,10 +310,10 @@ def train_client(global_model, global_optimizer, client_datasets, test_loader, m
                     if param.requires_grad:
                         # print("if param.requires_grad:",name,param.grad)
                         accumulated_gradients[name] += param.grad / (EPOCHS_PER_CLIENT*len(client_loader))
-                print("accumulated_gradients[name]",accumulated_gradients)
-                optimizer.step()
-                aggregated_accuracy = test_model(model, test_loader)
-                log_with_time(f"Client model {client_idx}+{epoch}+ {step} accuracy after aggregation: {aggregated_accuracy:.4f}")        
+                # print("accumulated_gradients[name]",accumulated_gradients)
+                # optimizer.step()
+                # aggregated_accuracy = test_model(model, test_loader)
+                # log_with_time(f"Client model {client_idx}+{epoch}+ {step} accuracy after aggregation: {aggregated_accuracy:.4f}")        
         
         for name, param in model.named_parameters():
             if param.requires_grad:
