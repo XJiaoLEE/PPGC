@@ -375,7 +375,7 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
         selected_clients = random.sample(range(total_local_clients), total_local_clients // 1)  # Randomly select half of the clients
         print("selected_clients",selected_clients)
         optimizer.zero_grad()
-       
+        accumulated_gradients=None
         for client_idx in selected_clients:
             # model = client_models[client_idx]
             # optimizer = optimizers[client_idx]
@@ -395,14 +395,23 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
                 loss = criterion(output, target)
                 loss.backward()
                 # dist.barrier()
-                for model_param, global_param in zip(model.parameters(), global_model.parameters()):
-                    if global_param.requires_grad:
-                        model_param.grad += global_param.grad/(len(selected_clients)*len(client_loader))
+                if accumulated_gradients is None:
+                    accumulated_gradients = {name: torch.zeros_like(param.grad) for name, param in model.named_parameters() if param.requires_grad}
+                
+                for name, param in global_model.named_parameters():
+                    if param.requires_grad:
+                        accumulated_gradients[name] += param.grad / (len(selected_clients)*len(client_loader))
+        
+                # for model_param, global_param in zip(model.parameters(), global_model.parameters()):
+                #     if global_param.requires_grad:
+                #         model_param.grad += global_param.grad/(len(selected_clients)*len(client_loader))
                 # global_optimizer.step()
                 # aggregated_accuracy = test_model(global_model, test_loader)
                 # log_with_time(f"Global model accuracy at epoch: {epoch}, client {client_idx} and step {step} after aggregation: {aggregated_accuracy:.4f}")
-        for model_param, global_param in zip(model.parameters(), global_model.parameters()):
-            global_param.grad = model_param.grad
+        for name, param in global_model.named_parameters():
+                    if param.requires_grad:
+                        param.grad=accumulated_gradients[name]
+        
         global_optimizer.step()
         aggregated_accuracy = test_model(global_model, test_loader)
         log_with_time(f"Global model accuracy after aggregation: {aggregated_accuracy:.4f}")
