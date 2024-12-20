@@ -396,7 +396,8 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
                 loss.backward()
                 # dist.barrier()
                 for model_param, global_param in zip(model.parameters(), global_model.parameters()):
-                    model_param.grad += global_param.grad/(len(selected_clients)*len(client_loader))
+                    if global_param.requires_grad:
+                        model_param.grad += global_param.grad/(len(selected_clients)*len(client_loader))
                 # global_optimizer.step()
                 # aggregated_accuracy = test_model(global_model, test_loader)
                 # log_with_time(f"Global model accuracy at epoch: {epoch}, client {client_idx} and step {step} after aggregation: {aggregated_accuracy:.4f}")
