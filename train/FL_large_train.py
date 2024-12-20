@@ -182,6 +182,7 @@ class GradientCompressor:
         self.mechanism = mechanism
         self.epsilon = epsilon
         self.out_bits = out_bits
+        self.compression_ratio = sparsification_ratio
         self.topk_instance = TopK(sparsification_ratio) if sparsification_ratio > 0 else None
         self.compressor_instance = None
         if self.mechanism == 'BASELINE':
@@ -197,7 +198,42 @@ class GradientCompressor:
             self.compressor_instance = RAPPORMechanism(out_bits, epsilon, out_bits)
         elif mechanism == 'TERNGRAD':
             self.compressor_instance = TernGrad(epsilon)
+    
+    def _sparsify(self, tensor):
+        # Flatten the tensor
+        tensor = tensor.view(-1)
+        numel = tensor.numel()
+        num_selects = max(1, int(numel * self.compress_ratio))
 
+        # Get the importance (absolute values)
+        importance = tensor.abs()
+
+        # Find the top k% elements directly using topk
+        threshold, indices = torch.topk(importance, num_selects, sorted=False)
+
+        # Extract the values at these indices
+        values = tensor[indices]
+        if self.compressor_instance is not None:
+            values = self.compressor_instance.compress(values)
+        return values, indices, numel
+
+    def compress(self, tensor):
+        # Perform sparsification
+        values, indices, numel = self._sparsify(tensor)
+        
+        # Return the compressed representation and the original tensor size
+        return (values, indices, numel)
+
+    def decompress(self, compressed_tensor, original_size):
+        values, indices, numel = compressed_tensor
+        # Create an empty tensor of the original size
+        decompressed_tensor = torch.zeros(original_size, device=values.device)
+        # Put the values back to their original positions
+        decompressed_tensor.index_put_([indices], values)
+        # Reshape back to the original shape
+        return decompressed_tensor.view(original_size)
+
+    
     def gradient_hook(self, grad):
         grad_np1 = grad.cpu().numpy()
         
@@ -224,6 +260,38 @@ class GradientCompressor:
         grad_np = grad_np.reshape(shape)
 
         return torch.tensor(grad_np, dtype=grad.dtype, device=grad.device)
+    
+def sparsify_comm_hook(state, bucket):
+    tensor = bucket.buffer()
+
+    # Create a compressor and compress the tensor
+    compressor =  state['gradient_compressor']
+    values, indices, numel = compressor.compress(tensor)
+
+
+    def gather():
+        # Gather values and indices from all processes
+        gathered_values = [torch.zeros_like(values) for _ in range(dist.get_world_size())]
+        gathered_indices = [torch.zeros_like(indices) for _ in range(dist.get_world_size())]
+
+        # All gather values and indices
+        dist.all_gather(gathered_values, values)
+        dist.all_gather(gathered_indices, indices)
+
+        # Combine gathered results
+        combined_values = torch.cat(gathered_values)
+        combined_indices = torch.cat(gathered_indices)
+        return combined_values, combined_indices
+
+    combined_values, combined_indices = gather()
+
+    # Decompress the tensor with combined values and indices
+    decompressed_tensor = compressor.decompress((combined_values, combined_indices, numel), tensor.size())
+
+    # Return the decompressed tensor divided by world size
+    fut = torch.futures.Future()
+    fut.set_result(decompressed_tensor / dist.get_world_size())
+    return fut
 
 import torch.nn.utils.prune as prune
 
@@ -260,40 +328,49 @@ def apply_global_mask(model, pruning_mask):
                 module.weight.requires_grad = False  # Optional: Freeze the pruned weights
 
 
+
+
+# Create client models only once
+client_models = [create_model() for _ in range(NUM_CLIENTS_PER_NODE)]
+optimizers = [torch.optim.Adam(model.parameters(), lr=0.001) for model in client_models]
+gradient_compressor = GradientCompressor(mechanism, sparsification_ratio, epsilon, args.out_bits)
+state = {'gradient_compressor': gradient_compressor}
+for model in models:
+    model.train()
+    model.register_comm_hook(state, sparsify_comm_hook)
+global_model = create_model()
+global_model.train()
+# 使用 Adam 作为优化器，设置合适的学习率
+global_optimizer = optim.Adam(global_model.parameters(), lr=0.001)  # 你可以根据需要调整lr
+client_datasets, test_loader = load_data()
+
 # Train client function
-def train_client(global_model, global_optimizer, client_datasets, test_loader, mechanism='BASELINE', out_bits=1):
+def train_epoch(global_model, global_optimizer, client_datasets, test_loader, mechanism='BASELINE', out_bits=1):
     # Randomly select 50% of local clients
     total_local_clients = NUM_CLIENTS_PER_NODE  
     selected_clients = random.sample(range(total_local_clients), total_local_clients // 2)  # Randomly select half of the clients
-    gradient_compressor = GradientCompressor(mechanism, sparsification_ratio, epsilon, out_bits)
-
-    # Create client models only once
-    client_models = [create_model() for _ in range(NUM_CLIENTS_PER_NODE)]
-    optimizers = [optim.SGD(client_models[_].parameters(), lr=LEARNING_RATE, momentum=0.9) for _ in range(NUM_CLIENTS_PER_NODE)]
-    client_gradients = []
-
-    for client_idx in selected_clients:
-        model = client_models[client_idx]
-        optimizer = optimizers[client_idx]
-        # Apply global pruning mask before training
-        if pruning_mask is not None:
-            apply_global_mask(model, pruning_mask)  # Apply global mask to the client model
-        model.load_state_dict(global_model.state_dict())  
-        optimizer.load_state_dict(global_optimizer.state_dict())
-        # print("optimizer.learning rate", optimizer.__getattribute__('param_groups')[0]['lr'])
-        model.train()
-        criterion = nn.CrossEntropyLoss()
-        client_loader = client_datasets[args.rank * NUM_CLIENTS_PER_NODE + client_idx]
+    
+    # for client_idx in selected_clients:
+    #     model = client_models[client_idx]
+    #     optimizer = optimizers[client_idx]
+    #     # print("optimizer.learning rate", optimizer.__getattribute__('param_groups')[0]['lr'])
+    #     model.train()
+    #     criterion = nn.CrossEntropyLoss()
+    #     client_loader = client_datasets[args.rank * NUM_CLIENTS_PER_NODE + client_idx]
         
-        # Register gradient hook for compression
-        for param in model.parameters():
-            if param.requires_grad:
-                param.register_hook(gradient_compressor.gradient_hook)
+    # Train the model for one epoch
+    for epoch in range(EPOCHS_PER_CLIENT):
+        log_with_time(f"Client {args.rank * NUM_CLIENTS_PER_NODE + client_idx}, Training epoch {epoch + 1}")
         
-        accumulated_gradients = None
-        # Train the model for one epoch
-        for epoch in range(EPOCHS_PER_CLIENT):
-            log_with_time(f"Client {args.rank * NUM_CLIENTS_PER_NODE + client_idx}, Training epoch {epoch + 1}")
+        for client_idx in selected_clients:
+            model = client_models[client_idx]
+            optimizer = optimizers[client_idx]
+            # print("optimizer.learning rate", optimizer.__getattribute__('param_groups')[0]['lr'])
+            model.train()
+            criterion = nn.CrossEntropyLoss()
+            client_loader = client_datasets[args.rank * NUM_CLIENTS_PER_NODE + client_idx]
+        
+        
             for step, (data, target) in enumerate(client_loader):
                 log_with_time(f"Client {args.rank * NUM_CLIENTS_PER_NODE + client_idx}, Training step {step + 1}")
                 data, target = data.to(device), target.to(device)
@@ -301,31 +378,13 @@ def train_client(global_model, global_optimizer, client_datasets, test_loader, m
                 output = model(data)
                 loss = criterion(output, target)
                 loss.backward()
-                
-                # Accumulate gradients after each step
-                if accumulated_gradients is None:
-                    accumulated_gradients = {name: torch.zeros_like(param.grad) for name, param in model.named_parameters() if param.requires_grad}
-                
-                for name, param in model.named_parameters():
-                    if param.requires_grad:
-                        # print("if param.requires_grad:",name,param.grad)
-                        accumulated_gradients[name] += param.grad / (EPOCHS_PER_CLIENT*len(client_loader))
-                # print("accumulated_gradients[name]",accumulated_gradients)
-                # optimizer.step()
-                # aggregated_accuracy = test_model(model, test_loader)
-                # log_with_time(f"Client model {client_idx}+{epoch}+ {step} accuracy after aggregation: {aggregated_accuracy:.4f}")        
-        
-        # for name, param in model.named_parameters():
-        #     if param.requires_grad:
-        #         param.data = accumulated_gradients[name]
-        # # print("avg accumulated_gradients[name]",accumulated_gradients)
-        # optimizer.step()
-        # aggregated_accuracy = test_model(model, test_loader)
-        # log_with_time(f"Client model {client_idx} accuracy after aggregation: {aggregated_accuracy:.4f}")        
-        client_gradients.append(accumulated_gradients)
+                dist.barrier()
+                for model_param, global_param in zip(model.parameters(), global_model.parameters()):
+                    global_param.grad = model_param.grad.clone()
+                global_optimizer.step()
+                aggregated_accuracy = test_model(global_model, test_loader)
+                log_with_time(f"Global model accuracy at epoch: {epoch}, client {client_idx} and step {step} after aggregation: {aggregated_accuracy:.4f}")
 
-
-    return client_gradients
 
 # 测试模型准确性
 def test_model(model, test_loader):
@@ -342,58 +401,13 @@ def test_model(model, test_loader):
     # log_with_time(f"Model accuracy: {accuracy:.4f}")
     return accuracy
 
-# Federated learning function
-def federated_learning(mechanism):
-    client_datasets, test_loader = load_data()
-    global_model = create_model()
-    # Apply global pruning mask before training
-    if pruning_mask is not None:
-        apply_global_mask(global_model, pruning_mask)  
-    global_optimizer = torch.optim.SGD(global_model.parameters(), lr=LEARNING_RATE, momentum=0.9)
-    scheduler = torch.optim.lr_scheduler.StepLR(global_optimizer, step_size=10, gamma=0.994)
+train_epoch(global_model, global_optimizer, client_datasets, test_loader, mechanism, args.out_bits)
 
-    for round in range(NUM_ROUNDS):
-        log_with_time(f"Round {round + 1}/{NUM_ROUNDS} started")
-
-        # Train clients and collect their gradients
-        client_models_gradients = train_client(global_model, global_optimizer, client_datasets, test_loader, args.mechanism, args.out_bits)
-
-        dist.barrier()
-        aggregate_global_model(global_model.module, client_models_gradients, global_optimizer)
-
-        aggregated_accuracy = test_model(global_model, test_loader)
-        log_with_time(f"Global model accuracy after aggregation: {aggregated_accuracy:.4f}")
-
-        # scheduler.step()
-
-      
-def aggregate_global_model(global_model, client_models_gradients, optimizer):
-    log_with_time("Aggregating global model from local gradients")
-    
-    with torch.no_grad():
-        for name, param in global_model.named_parameters():
-            if param.requires_grad:
-                aggregated_grad = torch.zeros_like(param.data)
-                for client_grad in client_models_gradients:
-                    # 使用添加 'module.' 前缀的名称来匹配
-                    grad_name = "module." + name
-                    if grad_name in client_grad and client_grad[grad_name].shape == aggregated_grad.shape:
-                        dist.all_reduce(client_grad[grad_name], op=dist.ReduceOp.SUM)
-                        dist.barrier()
-                        client_grad[grad_name] /= (args.world_size * len(client_models_gradients))
-                        aggregated_grad.add_(client_grad[grad_name])
-                    else:
-                        print(f"Skipping aggregation for {grad_name} due to shape mismatch: "
-                            f"{client_grad[grad_name].shape if grad_name in client_grad else 'not found'} vs {aggregated_grad.shape}")
-                param.grad = aggregated_grad
-        # # 调用优化器进行参数更新
-        optimizer.step()
-        optimizer.zero_grad()
-
-
-# 运行联邦学习
-if __name__ == "__main__":
-    federated_learning(args.mechanism)
+# # 运行联邦学习
+# if __name__ == "__main__":
+#     train_client(args.mechanism)
 
 # 关闭日志文件
 sys.stdout.close()
+
+
