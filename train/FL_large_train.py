@@ -336,16 +336,17 @@ optimizers = [torch.optim.Adam(model.parameters(), lr=0.001) for model in client
 gradient_compressor = GradientCompressor(mechanism, sparsification_ratio, epsilon, args.out_bits)
 state = {'gradient_compressor': gradient_compressor}
 for model in client_models:
-    model.train()
+    # model.train()
     model.register_comm_hook(state, sparsify_comm_hook)
 global_model = create_model()
-global_model.train()
+# global_model.train()
 # 使用 Adam 作为优化器，设置合适的学习率
 global_optimizer = optim.Adam(global_model.parameters(), lr=0.001)  # 你可以根据需要调整lr
 client_datasets, test_loader = load_data()
 
 # Train client function
 def train_epoch(global_model, global_optimizer, client_datasets, test_loader, mechanism='BASELINE', out_bits=1):
+    global_model.train()
     # Randomly select 50% of local clients
     total_local_clients = NUM_CLIENTS_PER_NODE  
     # for client_idx in selected_clients:
@@ -386,8 +387,8 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
                 aggregated_accuracy = test_model(global_model, test_loader)
                 log_with_time(f"Global model accuracy at epoch: {epoch}, client {client_idx} and step {step} after aggregation: {aggregated_accuracy:.4f}")
 
-    aggregated_accuracy = test_model(global_model, test_loader)
-    log_with_time(f"Global model accuracy after aggregation: {aggregated_accuracy:.4f}")
+        aggregated_accuracy = test_model(global_model, test_loader)
+        log_with_time(f"Global model accuracy after aggregation: {aggregated_accuracy:.4f}")
 
 # 测试模型准确性
 def test_model(model, test_loader):
