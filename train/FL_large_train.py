@@ -203,7 +203,7 @@ class GradientCompressor:
         # Flatten the tensor
         tensor = tensor.view(-1)
         numel = tensor.numel()
-        num_selects = max(1, int(numel * self.compress_ratio))
+        num_selects = max(1, int(numel * self.compression_ratio))
 
         # Get the importance (absolute values)
         importance = tensor.abs()
@@ -335,7 +335,7 @@ client_models = [create_model() for _ in range(NUM_CLIENTS_PER_NODE)]
 optimizers = [torch.optim.Adam(model.parameters(), lr=0.001) for model in client_models]
 gradient_compressor = GradientCompressor(mechanism, sparsification_ratio, epsilon, args.out_bits)
 state = {'gradient_compressor': gradient_compressor}
-for model in models:
+for model in client_models:
     model.train()
     model.register_comm_hook(state, sparsify_comm_hook)
 global_model = create_model()
@@ -360,7 +360,7 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
         
     # Train the model for one epoch
     for epoch in range(EPOCHS_PER_CLIENT):
-        log_with_time(f"Client {args.rank * NUM_CLIENTS_PER_NODE + client_idx}, Training epoch {epoch + 1}")
+        log_with_time(f"Training epoch {epoch + 1}")
         
         for client_idx in selected_clients:
             model = client_models[client_idx]
@@ -369,6 +369,8 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
             model.train()
             criterion = nn.CrossEntropyLoss()
             client_loader = client_datasets[args.rank * NUM_CLIENTS_PER_NODE + client_idx]
+            model.load_state_dict(global_model.state_dict())
+            optimizer.load_state_dict(global_optimizer.state_dict())
         
         
             for step, (data, target) in enumerate(client_loader):
