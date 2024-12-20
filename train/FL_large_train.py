@@ -24,8 +24,8 @@ print(f"CUDA version: {torch.version.cuda}")
 
 # 参数设置
 NUM_ROUNDS = 3000          # 联邦学习轮数
-EPOCHS_PER_CLIENT = 10    # 每轮客户端本地训练次数 4
-BATCH_SIZE = 64          # 批大小32 300 FOR MNIST 200 FOR CIFAR100 125 FOR CIFAR10
+EPOCHS_PER_CLIENT = 300    # 每轮客户端本地训练次数 4
+BATCH_SIZE = 125          # 批大小32 300 FOR MNIST 200 FOR CIFAR100 125 FOR CIFAR10
 LEARNING_RATE = 0.01    # 学习率
 epsilon = 0.0            # DP 使用的 epsilon 值
 NUM_CLIENTS_PER_NODE = 50  # 每个主机上的客户端数量125 
@@ -370,7 +370,7 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
             criterion = nn.CrossEntropyLoss()
             client_loader = client_datasets[args.rank * NUM_CLIENTS_PER_NODE + client_idx]
             model.load_state_dict(global_model.state_dict())
-            optimizer.load_state_dict(global_optimizer.state_dict())
+            # optimizer.load_state_dict(global_optimizer.state_dict())
         
         
             for step, (data, target) in enumerate(client_loader):
