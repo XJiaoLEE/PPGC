@@ -58,8 +58,8 @@ if epsilon > 0 :
     if mechanism == 'BASELINE' :
         mechanism = 'LDP-FL'
 if args.dataset != 'MNIST':
-    LEARNING_RATE = 0.002
-    BATCH_SIZE = 30
+    LEARNING_RATE = 0.001
+    BATCH_SIZE = 125
     EPOCHS_PER_CLIENT = 2000
 
 # 初始化进程组
@@ -217,7 +217,10 @@ class GradientCompressor:
         # Extract the values at these indices
         values = tensor[indices]
         if self.compressor_instance is not None:
+            device_info = values.device
+            values = values.cpu().numpy()
             values = self.compressor_instance.compress(values)
+            values = torch.from_numpy(values).to(device_info)
         return values, indices, numel
 
     def compress(self, tensor):
