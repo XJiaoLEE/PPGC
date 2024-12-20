@@ -367,13 +367,15 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
     #     model.train()
     #     criterion = nn.CrossEntropyLoss()
     #     client_loader = client_datasets[args.rank * NUM_CLIENTS_PER_NODE + client_idx]
-        
+    model = create_model()   
+    optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)  
     # Train the model for one epoch
     for epoch in range(EPOCHS_PER_CLIENT):
         log_with_time(f"Training epoch {epoch + 1}")
         selected_clients = random.sample(range(total_local_clients), total_local_clients // 1)  # Randomly select half of the clients
         print("selected_clients",selected_clients)
-     
+        optimizer.zero_grad()
+       
         for client_idx in selected_clients:
             # model = client_models[client_idx]
             # optimizer = optimizers[client_idx]
@@ -393,12 +395,14 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
                 loss = criterion(output, target)
                 loss.backward()
                 # dist.barrier()
-                # for model_param, global_param in zip(model.parameters(), global_model.parameters()):
-                #     global_param.grad = model_param.grad.clone()
-                global_optimizer.step()
+                for model_param, global_param in zip(model.parameters(), global_model.parameters()):
+                    model_param.grad += global_param.grad/(len(selected_clients)*len(client_loader))
+                # global_optimizer.step()
                 # aggregated_accuracy = test_model(global_model, test_loader)
                 # log_with_time(f"Global model accuracy at epoch: {epoch}, client {client_idx} and step {step} after aggregation: {aggregated_accuracy:.4f}")
-
+        for model_param, global_param in zip(model.parameters(), global_model.parameters()):
+            global_param.grad = model_param.grad
+        global_optimizer.step()
         aggregated_accuracy = test_model(global_model, test_loader)
         log_with_time(f"Global model accuracy after aggregation: {aggregated_accuracy:.4f}")
 
