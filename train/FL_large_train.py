@@ -335,17 +335,20 @@ def apply_global_mask(model, pruning_mask):
 
 
 # Create client models only once
-client_models = [create_model() for _ in range(NUM_CLIENTS_PER_NODE)]
-optimizers = [torch.optim.Adam(model.parameters(), lr=LEARNING_RATE) for model in client_models]
-gradient_compressor = GradientCompressor(mechanism, sparsification_ratio, epsilon, args.out_bits)
-state = {'gradient_compressor': gradient_compressor}
-for model in client_models:
-    model.train()
-    model.register_comm_hook(state, sparsify_comm_hook)
+# client_models = [create_model() for _ in range(NUM_CLIENTS_PER_NODE)]
+# optimizers = [torch.optim.Adam(model.parameters(), lr=LEARNING_RATE) for model in client_models]
+# gradient_compressor = GradientCompressor(mechanism, sparsification_ratio, epsilon, args.out_bits)
+# state = {'gradient_compressor': gradient_compressor}
+# for model in client_models:
+#     model.train()
+#     model.register_comm_hook(state, sparsify_comm_hook)
 global_model = create_model()
-global_model.train()
 # 使用 Adam 作为优化器，设置合适的学习率
 global_optimizer = optim.Adam(global_model.parameters(), lr=LEARNING_RATE)  # 你可以根据需要调整lr
+gradient_compressor = GradientCompressor(mechanism, sparsification_ratio, epsilon, args.out_bits)
+state = {'gradient_compressor': gradient_compressor}
+global_model.register_comm_hook(state, sparsify_comm_hook)
+global_model.train()
 client_datasets, test_loader = load_data()
 
 # Train client function
@@ -369,29 +372,29 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
         print("selected_clients",selected_clients)
      
         for client_idx in selected_clients:
-            model = client_models[client_idx]
-            optimizer = optimizers[client_idx]
+            # model = client_models[client_idx]
+            # optimizer = optimizers[client_idx]
             # print("optimizer.learning rate", optimizer.__getattribute__('param_groups')[0]['lr'])
             # model.train()
             criterion = nn.CrossEntropyLoss()
             client_loader = client_datasets[args.rank * NUM_CLIENTS_PER_NODE + client_idx]
-            model.load_state_dict(global_model.state_dict())
+            # global_model.load_state_dict(global_model.state_dict())
             # optimizer.load_state_dict(global_optimizer.state_dict())
         
         
             for step, (data, target) in enumerate(client_loader):
                 # log_with_time(f"Client {args.rank * NUM_CLIENTS_PER_NODE + client_idx}, Training step {step + 1}")
                 data, target = data.to(device), target.to(device)
-                optimizer.zero_grad()
-                output = model(data)
+                global_optimizer.zero_grad()
+                output = global_model(data)
                 loss = criterion(output, target)
                 loss.backward()
                 # dist.barrier()
-                for model_param, global_param in zip(model.parameters(), global_model.parameters()):
-                    global_param.grad = model_param.grad.clone()
+                # for model_param, global_param in zip(model.parameters(), global_model.parameters()):
+                #     global_param.grad = model_param.grad.clone()
                 global_optimizer.step()
-                # aggregated_accuracy = test_model(global_model, test_loader)
-                # log_with_time(f"Global model accuracy at epoch: {epoch}, client {client_idx} and step {step} after aggregation: {aggregated_accuracy:.4f}")
+                aggregated_accuracy = test_model(global_model, test_loader)
+                log_with_time(f"Global model accuracy at epoch: {epoch}, client {client_idx} and step {step} after aggregation: {aggregated_accuracy:.4f}")
 
         aggregated_accuracy = test_model(global_model, test_loader)
         log_with_time(f"Global model accuracy after aggregation: {aggregated_accuracy:.4f}")
