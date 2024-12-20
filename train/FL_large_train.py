@@ -380,7 +380,7 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
                 output = model(data)
                 loss = criterion(output, target)
                 loss.backward()
-                dist.barrier()
+                # dist.barrier()
                 for model_param, global_param in zip(model.parameters(), global_model.parameters()):
                     global_param.grad = model_param.grad.clone()
                 global_optimizer.step()
