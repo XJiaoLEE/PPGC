@@ -262,6 +262,7 @@ class GradientCompressor:
         return torch.tensor(grad_np, dtype=grad.dtype, device=grad.device)
     
 def sparsify_comm_hook(state, bucket):
+    print("sparsify_comm_hook")
     tensor = bucket.buffer()
 
     # Create a compressor and compress the tensor
