@@ -336,17 +336,17 @@ optimizers = [torch.optim.Adam(model.parameters(), lr=0.001) for model in client
 gradient_compressor = GradientCompressor(mechanism, sparsification_ratio, epsilon, args.out_bits)
 state = {'gradient_compressor': gradient_compressor}
 for model in client_models:
-    # model.train()
+    model.train()
     model.register_comm_hook(state, sparsify_comm_hook)
 global_model = create_model()
-# global_model.train()
+global_model.train()
 # 使用 Adam 作为优化器，设置合适的学习率
 global_optimizer = optim.Adam(global_model.parameters(), lr=0.001)  # 你可以根据需要调整lr
 client_datasets, test_loader = load_data()
 
 # Train client function
 def train_epoch(global_model, global_optimizer, client_datasets, test_loader, mechanism='BASELINE', out_bits=1):
-    global_model.train()
+    # global_model.train()
     # Randomly select 50% of local clients
     total_local_clients = NUM_CLIENTS_PER_NODE  
     # for client_idx in selected_clients:
@@ -366,7 +366,7 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
             model = client_models[client_idx]
             optimizer = optimizers[client_idx]
             # print("optimizer.learning rate", optimizer.__getattribute__('param_groups')[0]['lr'])
-            model.train()
+            # model.train()
             criterion = nn.CrossEntropyLoss()
             client_loader = client_datasets[args.rank * NUM_CLIENTS_PER_NODE + client_idx]
             model.load_state_dict(global_model.state_dict())
