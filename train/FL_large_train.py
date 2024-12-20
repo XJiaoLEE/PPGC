@@ -262,7 +262,7 @@ class GradientCompressor:
         return torch.tensor(grad_np, dtype=grad.dtype, device=grad.device)
     
 def sparsify_comm_hook(state, bucket):
-    print("sparsify_comm_hook")
+    # print("sparsify_comm_hook")
     tensor = bucket.buffer()
 
     # Create a compressor and compress the tensor
@@ -377,7 +377,7 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
         
         
             for step, (data, target) in enumerate(client_loader):
-                log_with_time(f"Client {args.rank * NUM_CLIENTS_PER_NODE + client_idx}, Training step {step + 1}")
+                # log_with_time(f"Client {args.rank * NUM_CLIENTS_PER_NODE + client_idx}, Training step {step + 1}")
                 data, target = data.to(device), target.to(device)
                 optimizer.zero_grad()
                 output = model(data)
