@@ -368,7 +368,7 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
             # print("optimizer.learning rate", optimizer.__getattribute__('param_groups')[0]['lr'])
             model.train()
             criterion = nn.CrossEntropyLoss()
-            client_loader = client_datasets[args.rank * NUM_CLIENTS_PER_NODE + client_idx]
+            client_loader = client_datasets[args.rank * NUM_CLIENTS_PER_NODE + client_idx] 
         
         
             for step, (data, target) in enumerate(client_loader):
