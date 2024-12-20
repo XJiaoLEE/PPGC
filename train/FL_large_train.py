@@ -387,7 +387,7 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
                 log_with_time(f"Global model accuracy at epoch: {epoch}, client {client_idx} and step {step} after aggregation: {aggregated_accuracy:.4f}")
 
     aggregated_accuracy = test_model(global_model, test_loader)
-    log_with_time(f"Global model accuracy at epoch: {epoch} after aggregation: {aggregated_accuracy:.4f}")
+    log_with_time(f"Global model accuracy after aggregation: {aggregated_accuracy:.4f}")
 
 # 测试模型准确性
 def test_model(model, test_loader):
