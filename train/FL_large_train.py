@@ -24,8 +24,8 @@ print(f"CUDA version: {torch.version.cuda}")
 
 # 参数设置
 NUM_ROUNDS = 100          # 联邦学习轮数
-EPOCHS_PER_CLIENT = 2    # 每轮客户端本地训练次数 4 150
-BATCH_SIZE = 75 #150          # 批大小32 300 FOR MNIST 200 FOR CIFAR100 125 FOR CIFAR10
+EPOCHS_PER_CLIENT = 1    # 每轮客户端本地训练次数 4 150
+BATCH_SIZE = 150 #150          # 批大小32 300 FOR MNIST 200 FOR CIFAR100 125 FOR CIFAR10
 LEARNING_RATE = 0.01    # 学习率
 epsilon = 0.0            # DP 使用的 epsilon 值
 NUM_CLIENTS_PER_NODE = 10  # 每个主机上的客户端数量125 
@@ -61,6 +61,7 @@ if args.dataset != 'MNIST':
     LEARNING_RATE = 0.001
     BATCH_SIZE = 62  #125
     EPOCHS_PER_CLIENT = 2#500
+    NUM_CLIENTS_PER_NODE = 1
 
 # 初始化进程组
 dist.init_process_group(backend=args.dist_backend, init_method=args.dist_url, world_size=args.world_size, rank=args.rank)
