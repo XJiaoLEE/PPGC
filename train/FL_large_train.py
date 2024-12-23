@@ -59,9 +59,9 @@ if epsilon > 0 :
         mechanism = 'LDP-FL'
 if args.dataset != 'MNIST':
     LEARNING_RATE = 0.001
-    BATCH_SIZE = 62  #125
+    BATCH_SIZE = 125  #125
     EPOCHS_PER_CLIENT = 2#500
-    NUM_CLIENTS_PER_NODE = 1
+    NUM_CLIENTS_PER_NODE = 5
     NUM_ROUNDS = 500
 
 # 初始化进程组
