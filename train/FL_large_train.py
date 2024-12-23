@@ -60,7 +60,7 @@ if epsilon > 0 :
 if args.dataset != 'MNIST':
     LEARNING_RATE = 0.001
     BATCH_SIZE = 125  #125
-    EPOCHS_PER_CLIENT = 2000
+    EPOCHS_PER_CLIENT = 500
 
 # 初始化进程组
 dist.init_process_group(backend=args.dist_backend, init_method=args.dist_url, world_size=args.world_size, rank=args.rank)
