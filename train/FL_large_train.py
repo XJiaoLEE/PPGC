@@ -399,17 +399,17 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
                     
                     for name, param in model.named_parameters():
                         if param.requires_grad:
-                            accumulated_gradients[name] += param.grad / (len(selected_clients)*len(client_loader)*EPOCHS_PER_CLIENT)
+                            accumulated_gradients[name] += param.grad
             
                     # for model_param, global_param in zip(model.parameters(), global_model.parameters()):
                     #     if global_param.requires_grad:
                     #         model_param.grad += global_param.grad/(len(selected_clients)*len(client_loader))
                     # global_optimizer.step()
-                    # aggregated_accuracy = test_model(global_model, test_loader)
-                    # log_with_time(f"Global model accuracy at epoch: {epoch}, client {client_idx} and step {step} after aggregation: {aggregated_accuracy:.4f}")
+            aggregated_accuracy = test_model(model, test_loader)
+            log_with_time(f"Model accuracy at client {client_idx} : {aggregated_accuracy:.4f}")
         for name, param in global_model.named_parameters():
             if param.requires_grad:
-                param.grad=accumulated_gradients[name]
+                param.grad=accumulated_gradients[name] / (len(selected_clients)*len(client_loader)*EPOCHS_PER_CLIENT)
         
         global_optimizer.step()
         aggregated_accuracy = test_model(global_model, test_loader)
