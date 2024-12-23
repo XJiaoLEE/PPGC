@@ -372,6 +372,7 @@ client_datasets, test_loader = load_data()
 
 # Train client function
 def train_epoch(global_model, global_optimizer, client_datasets, test_loader, mechanism='BASELINE', out_bits=1):
+    log_with_time(f"Start training ....")
     # global_model.train()
     # Randomly select 50% of local clients
     total_local_clients = NUM_CLIENTS_PER_NODE 
