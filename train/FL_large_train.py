@@ -23,12 +23,12 @@ print(f"Is CUDA available: {torch.cuda.is_available()}")
 print(f"CUDA version: {torch.version.cuda}")
 
 # 参数设置
-NUM_ROUNDS = 100          # 联邦学习轮数
-EPOCHS_PER_CLIENT = 1    # 每轮客户端本地训练次数 4 150
+NUM_ROUNDS = 150          # 联邦学习轮数
+EPOCHS_PER_CLIENT = 5    # 每轮客户端本地训练次数 4 150
 BATCH_SIZE = 150 #150          # 批大小32 300 FOR MNIST 200 FOR CIFAR100 125 FOR CIFAR10
 LEARNING_RATE = 0.01    # 学习率
 epsilon = 0.0            # DP 使用的 epsilon 值
-NUM_CLIENTS_PER_NODE = 10  # 每个主机上的客户端数量125 
+NUM_CLIENTS_PER_NODE = 25  # 每个主机上的客户端数量125 
 
 # 检测是否有可用的 GPU，如果没有则使用 CPU
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -62,6 +62,7 @@ if args.dataset != 'MNIST':
     BATCH_SIZE = 62  #125
     EPOCHS_PER_CLIENT = 2#500
     NUM_CLIENTS_PER_NODE = 1
+    NUM_ROUNDS = 500
 
 # 初始化进程组
 dist.init_process_group(backend=args.dist_backend, init_method=args.dist_url, world_size=args.world_size, rank=args.rank)
@@ -367,7 +368,7 @@ global_model = create_model()
 global_optimizer = optim.Adam(global_model.parameters(), lr=LEARNING_RATE)  # 你可以根据需要调整lr
 gradient_compressor = GradientCompressor(mechanism, sparsification_ratio, epsilon, args.out_bits)
 state = {'gradient_compressor': gradient_compressor}
-global_model.register_comm_hook(state, sparsify_comm_hook)
+# global_model.register_comm_hook(state, sparsify_comm_hook)
 global_model.train()
 client_datasets, test_loader = load_data()
 
