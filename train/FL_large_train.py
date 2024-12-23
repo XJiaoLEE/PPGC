@@ -25,10 +25,10 @@ print(f"CUDA version: {torch.version.cuda}")
 # 参数设置
 NUM_ROUNDS = 100          # 联邦学习轮数
 EPOCHS_PER_CLIENT = 2    # 每轮客户端本地训练次数 4 150
-BATCH_SIZE = 150 #150          # 批大小32 300 FOR MNIST 200 FOR CIFAR100 125 FOR CIFAR10
+BATCH_SIZE = 75 #150          # 批大小32 300 FOR MNIST 200 FOR CIFAR100 125 FOR CIFAR10
 LEARNING_RATE = 0.01    # 学习率
 epsilon = 0.0            # DP 使用的 epsilon 值
-NUM_CLIENTS_PER_NODE = 1  # 每个主机上的客户端数量125 
+NUM_CLIENTS_PER_NODE = 25  # 每个主机上的客户端数量125 
 
 # 检测是否有可用的 GPU，如果没有则使用 CPU
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -373,6 +373,7 @@ client_datasets, test_loader = load_data()
 # Train client function
 def train_epoch(global_model, global_optimizer, client_datasets, test_loader, mechanism='BASELINE', out_bits=1):
     log_with_time(f"Start training ....")
+    print("len(selected_clients)*len(client_loader)*EPOCHS_PER_CLIENT",len(selected_clients)*len(client_loader)*EPOCHS_PER_CLIENT)
     # global_model.train()
     # Randomly select 50% of local clients
     total_local_clients = NUM_CLIENTS_PER_NODE 
