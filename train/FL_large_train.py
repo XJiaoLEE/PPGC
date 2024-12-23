@@ -376,7 +376,7 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
         print("selected_clients",selected_clients)
         accumulated_gradients=None
         for client_idx in selected_clients:
-            log_with_time(f"Training client {epoch + 1}")
+            log_with_time(f"Training client {client_idx + 1}")
             model = client_models[client_idx]
             optimizer = optimizers[client_idx]
             criterion = nn.CrossEntropyLoss()
