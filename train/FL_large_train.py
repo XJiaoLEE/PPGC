@@ -382,7 +382,6 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
             criterion = nn.CrossEntropyLoss()
             client_loader = client_datasets[args.rank * NUM_CLIENTS_PER_NODE + client_idx]
             model.load_state_dict(global_model.state_dict())
-            optimizer.zero_grad()
             for epoch in range(EPOCHS_PER_CLIENT):
                 log_with_time(f"Training epoch {epoch + 1}")
             
