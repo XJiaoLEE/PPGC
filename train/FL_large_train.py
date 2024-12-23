@@ -388,11 +388,12 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
     # optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)  
     # Train the model for one epoch
     for round in range(NUM_ROUNDS):
-        print("len(selected_clients)*len(client_loader)*EPOCHS_PER_CLIENT",len(selected_clients)*len(client_loader)*EPOCHS_PER_CLIENT)
-    
+        
         log_with_time(f"Training round {round + 1}/{NUM_ROUNDS}")
         selected_clients = random.sample(range(total_local_clients), total_local_clients // 1)  # Randomly select half of the clients
         print("selected_clients",selected_clients)
+        print("len(selected_clients)*len(client_loader)*EPOCHS_PER_CLIENT",len(selected_clients)*len(client_loader)*EPOCHS_PER_CLIENT)
+    
         accumulated_gradients=None
         for client_idx in selected_clients:
             log_with_time(f"Training client {client_idx + 1}")
