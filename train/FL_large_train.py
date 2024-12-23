@@ -25,7 +25,7 @@ print(f"CUDA version: {torch.version.cuda}")
 # 参数设置
 NUM_ROUNDS = 3000          # 联邦学习轮数
 EPOCHS_PER_CLIENT = 300    # 每轮客户端本地训练次数 4
-BATCH_SIZE = 75 #150          # 批大小32 300 FOR MNIST 200 FOR CIFAR100 125 FOR CIFAR10
+BATCH_SIZE = 150 #150          # 批大小32 300 FOR MNIST 200 FOR CIFAR100 125 FOR CIFAR10
 LEARNING_RATE = 0.01    # 学习率
 epsilon = 0.0            # DP 使用的 epsilon 值
 NUM_CLIENTS_PER_NODE = 50  # 每个主机上的客户端数量125 
@@ -372,7 +372,7 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
     # Train the model for one epoch
     for epoch in range(EPOCHS_PER_CLIENT):
         log_with_time(f"Training epoch {epoch + 1}")
-        selected_clients = random.sample(range(total_local_clients), total_local_clients // 1)  # Randomly select half of the clients
+        selected_clients = random.sample(range(total_local_clients), total_local_clients // 2)  # Randomly select half of the clients
         print("selected_clients",selected_clients)
         # optimizer.zero_grad()
         accumulated_gradients=None
@@ -409,8 +409,8 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
                 # aggregated_accuracy = test_model(global_model, test_loader)
                 # log_with_time(f"Global model accuracy at epoch: {epoch}, client {client_idx} and step {step} after aggregation: {aggregated_accuracy:.4f}")
         for name, param in global_model.named_parameters():
-                    if param.requires_grad:
-                        param.grad=accumulated_gradients[name]
+            if param.requires_grad:
+                param.grad=accumulated_gradients[name]
         
         global_optimizer.step()
         aggregated_accuracy = test_model(global_model, test_loader)
