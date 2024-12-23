@@ -104,40 +104,40 @@ def load_data():
             test_dataset = datasets.CIFAR100(root=data_path, train=False, download=True, transform=transform_test)
         elif args.dataset == 'CIFAR10':
             # LEARNING_RATE = 0.04
-            IMAGENET_MEAN = [0.485, 0.456, 0.406]
-            IMAGENET_STD = [0.229, 0.224, 0.225]
+            # IMAGENET_MEAN = [0.485, 0.456, 0.406]
+            # IMAGENET_STD = [0.229, 0.224, 0.225]
 
-            # 数据预处理
-            transform_train = transforms.Compose([
-                transforms.RandomCrop(32, padding=4),  # 随机裁剪和填充，以增强数据
-                transforms.RandomHorizontalFlip(),     # 随机水平翻转
-                transforms.Resize(224),                # 调整图片大小为224x224，以适应ResNet输入要求
-                transforms.ToTensor(),                 # 转换为tensor
-                transforms.Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD),  # 使用ImageNet的均值和标准差
-            ])
-            
-            transform_test = transforms.Compose([
-                transforms.Resize(224),                # 调整图片大小为224x224
-                transforms.ToTensor(),
-                transforms.Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD),  # 使用ImageNet的均值和标准差
-            ])
-            # # CIFAR10的均值和标准差
-            # CIFAR_MEAN = [0.49139968, 0.48215827, 0.44653124]
-            # CIFAR_STD = [0.24703233, 0.24348505, 0.26158768]
-
-            # # 训练集数据预处理
+            # # 数据预处理
             # transform_train = transforms.Compose([
-            #     transforms.RandomCrop(32, padding=4),  # 随机裁剪并填充至32x32
+            #     transforms.RandomCrop(32, padding=4),  # 随机裁剪和填充，以增强数据
             #     transforms.RandomHorizontalFlip(),     # 随机水平翻转
-            #     transforms.ToTensor(),
-            #     transforms.Normalize(mean=CIFAR_MEAN, std=CIFAR_STD)  # 使用CIFAR10的均值和标准差
+            #     transforms.Resize(224),                # 调整图片大小为224x224，以适应ResNet输入要求
+            #     transforms.ToTensor(),                 # 转换为tensor
+            #     transforms.Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD),  # 使用ImageNet的均值和标准差
             # ])
-
-            # # 测试集数据预处理
+            
             # transform_test = transforms.Compose([
+            #     transforms.Resize(224),                # 调整图片大小为224x224
             #     transforms.ToTensor(),
-            #     transforms.Normalize(mean=CIFAR_MEAN, std=CIFAR_STD)  # 使用CIFAR10的均值和标准差
+            #     transforms.Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD),  # 使用ImageNet的均值和标准差
             # ])
+            # CIFAR10的均值和标准差
+            CIFAR_MEAN = [0.49139968, 0.48215827, 0.44653124]
+            CIFAR_STD = [0.24703233, 0.24348505, 0.26158768]
+
+            # 训练集数据预处理
+            transform_train = transforms.Compose([
+                transforms.RandomCrop(32, padding=4),  # 随机裁剪并填充至32x32
+                transforms.RandomHorizontalFlip(),     # 随机水平翻转
+                transforms.ToTensor(),
+                transforms.Normalize(mean=CIFAR_MEAN, std=CIFAR_STD)  # 使用CIFAR10的均值和标准差
+            ])
+
+            # 测试集数据预处理
+            transform_test = transforms.Compose([
+                transforms.ToTensor(),
+                transforms.Normalize(mean=CIFAR_MEAN, std=CIFAR_STD)  # 使用CIFAR10的均值和标准差
+            ])
 
             # 加载训练集和测试集
             train_dataset = datasets.CIFAR10(root=data_path, train=True, download=True, transform=transform_train)
@@ -185,10 +185,10 @@ def create_model():
         model = models.resnet50(weights=ResNet50_Weights.IMAGENET1K_V1).to(device)
         model.fc = nn.Linear(model.fc.in_features, 100).to(device)
     elif args.dataset == 'CIFAR10':
-        # model = models.resnet18(num_classes=10).to(device)
-        from torchvision.models import ResNet18_Weights
-        model = models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1).to(device)
-        model.fc = nn.Linear(model.fc.in_features, 10).to(device)
+        model = models.resnet18(num_classes=10).to(device)
+        # from torchvision.models import ResNet18_Weights
+        # model = models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1).to(device)
+        # model.fc = nn.Linear(model.fc.in_features, 10).to(device)
     else:  # MNIST
         model = ConvNet().to(device)
     model = DDP(model, device_ids=[args.rank % torch.cuda.device_count()])
