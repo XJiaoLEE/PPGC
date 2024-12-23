@@ -28,7 +28,7 @@ EPOCHS_PER_CLIENT = 2    # 每轮客户端本地训练次数 4 150
 BATCH_SIZE = 150 #150          # 批大小32 300 FOR MNIST 200 FOR CIFAR100 125 FOR CIFAR10
 LEARNING_RATE = 0.01    # 学习率
 epsilon = 0.0            # DP 使用的 epsilon 值
-NUM_CLIENTS_PER_NODE = 10  # 每个主机上的客户端数量125 
+NUM_CLIENTS_PER_NODE = 1  # 每个主机上的客户端数量125 
 
 # 检测是否有可用的 GPU，如果没有则使用 CPU
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -421,8 +421,8 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
                     #     if global_param.requires_grad:
                     #         model_param.grad += global_param.grad/(len(selected_clients)*len(client_loader))
                     # global_optimizer.step()
-            aggregated_accuracy = test_model(model, test_loader)
-            log_with_time(f"Model accuracy at client {client_idx} : {aggregated_accuracy:.4f}")
+                aggregated_accuracy = test_model(model, test_loader)
+                log_with_time(f"Model accuracy at client {client_idx} : {aggregated_accuracy:.4f}")
         for name, param in global_model.named_parameters():
             if param.requires_grad:
                 param.grad=accumulated_gradients[name] / (len(selected_clients)*len(client_loader)*EPOCHS_PER_CLIENT)
