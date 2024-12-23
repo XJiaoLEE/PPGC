@@ -391,7 +391,7 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
     # Train the model for one epoch
     for round in range(NUM_ROUNDS):
         
-        log_with_time(f"Training round {round + 1}/{NUM_ROUNDS}")
+        log_with_time(f"Round {round + 1}/{NUM_ROUNDS} started")
         selected_clients = random.sample(range(total_local_clients), total_local_clients // 1)  # Randomly select half of the clients
         print("selected_clients",selected_clients)
         accumulated_gradients=None
@@ -405,7 +405,7 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
     
             model.load_state_dict(global_model.state_dict())
             for epoch in range(EPOCHS_PER_CLIENT):
-                log_with_time(f"Training epoch {epoch + 1}")
+                log_with_time(f"Epoch {epoch + 1}")
             
                 for step, (data, target) in enumerate(client_loader):
                     log_with_time(f"Client {args.rank * NUM_CLIENTS_PER_NODE + client_idx}, Training step {step + 1}")
