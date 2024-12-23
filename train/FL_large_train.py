@@ -24,7 +24,7 @@ print(f"CUDA version: {torch.version.cuda}")
 
 # 参数设置
 NUM_ROUNDS = 100          # 联邦学习轮数
-EPOCHS_PER_CLIENT = 2    # 每轮客户端本地训练次数 4
+EPOCHS_PER_CLIENT = 2    # 每轮客户端本地训练次数 4 150
 BATCH_SIZE = 150 #150          # 批大小32 300 FOR MNIST 200 FOR CIFAR100 125 FOR CIFAR10
 LEARNING_RATE = 0.01    # 学习率
 epsilon = 0.0            # DP 使用的 epsilon 值
@@ -370,7 +370,7 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
     # model = create_model()   
     # optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)  
     # Train the model for one epoch
-    for round in NUM_ROUNDS:
+    for round in range(NUM_ROUNDS):
         log_with_time(f"Training round {round + 1}/{NUM_ROUNDS}")
         selected_clients = random.sample(range(total_local_clients), total_local_clients // 1)  # Randomly select half of the clients
         print("selected_clients",selected_clients)
