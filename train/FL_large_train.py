@@ -23,12 +23,12 @@ print(f"Is CUDA available: {torch.cuda.is_available()}")
 print(f"CUDA version: {torch.version.cuda}")
 
 # 参数设置
-NUM_ROUNDS = 3000          # 联邦学习轮数
-EPOCHS_PER_CLIENT = 150    # 每轮客户端本地训练次数 4
+NUM_ROUNDS = 100          # 联邦学习轮数
+EPOCHS_PER_CLIENT = 2    # 每轮客户端本地训练次数 4
 BATCH_SIZE = 150 #150          # 批大小32 300 FOR MNIST 200 FOR CIFAR100 125 FOR CIFAR10
 LEARNING_RATE = 0.01    # 学习率
 epsilon = 0.0            # DP 使用的 epsilon 值
-NUM_CLIENTS_PER_NODE = 50  # 每个主机上的客户端数量125 
+NUM_CLIENTS_PER_NODE = 10  # 每个主机上的客户端数量125 
 
 # 检测是否有可用的 GPU，如果没有则使用 CPU
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -60,7 +60,7 @@ if epsilon > 0 :
 if args.dataset != 'MNIST':
     LEARNING_RATE = 0.001
     BATCH_SIZE = 125  #125
-    EPOCHS_PER_CLIENT = 500
+    EPOCHS_PER_CLIENT = 2#500
 
 # 初始化进程组
 dist.init_process_group(backend=args.dist_backend, init_method=args.dist_url, world_size=args.world_size, rank=args.rank)
@@ -338,13 +338,13 @@ def apply_global_mask(model, pruning_mask):
 
 
 # Create client models only once
-# client_models = [create_model() for _ in range(NUM_CLIENTS_PER_NODE)]
-# optimizers = [torch.optim.Adam(model.parameters(), lr=LEARNING_RATE) for model in client_models]
-# gradient_compressor = GradientCompressor(mechanism, sparsification_ratio, epsilon, args.out_bits)
-# state = {'gradient_compressor': gradient_compressor}
-# for model in client_models:
-#     model.train()
-#     model.register_comm_hook(state, sparsify_comm_hook)
+client_models = [create_model() for _ in range(NUM_CLIENTS_PER_NODE)]
+optimizers = [torch.optim.Adam(model.parameters(), lr=LEARNING_RATE) for model in client_models]
+gradient_compressor = GradientCompressor(mechanism, sparsification_ratio, epsilon, args.out_bits)
+state = {'gradient_compressor': gradient_compressor}
+for model in client_models:
+    model.train()
+    model.register_comm_hook(state, sparsify_comm_hook)
 global_model = create_model()
 # 使用 Adam 作为优化器，设置合适的学习率
 global_optimizer = optim.Adam(global_model.parameters(), lr=LEARNING_RATE)  # 你可以根据需要调整lr
@@ -370,44 +370,44 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
     # model = create_model()   
     # optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)  
     # Train the model for one epoch
-    for epoch in range(EPOCHS_PER_CLIENT):
-        log_with_time(f"Training epoch {epoch + 1}")
+    for round in NUM_ROUNDS:
+        log_with_time(f"Training round {round + 1}/{NUM_ROUNDS}")
         selected_clients = random.sample(range(total_local_clients), total_local_clients // 1)  # Randomly select half of the clients
         print("selected_clients",selected_clients)
-        # optimizer.zero_grad()
         accumulated_gradients=None
         for client_idx in selected_clients:
-            # model = client_models[client_idx]
-            # optimizer = optimizers[client_idx]
-            # print("optimizer.learning rate", optimizer.__getattribute__('param_groups')[0]['lr'])
-            # model.train()
+            log_with_time(f"Training client {epoch + 1}")
+            model = client_models[client_idx]
+            optimizer = optimizers[client_idx]
             criterion = nn.CrossEntropyLoss()
             client_loader = client_datasets[args.rank * NUM_CLIENTS_PER_NODE + client_idx]
-            # global_model.load_state_dict(global_model.state_dict())
-            # optimizer.load_state_dict(global_optimizer.state_dict())
-        
-        
-            for step, (data, target) in enumerate(client_loader):
-                log_with_time(f"Client {args.rank * NUM_CLIENTS_PER_NODE + client_idx}, Training step {step + 1}")
-                data, target = data.to(device), target.to(device)
-                global_optimizer.zero_grad()
-                output = global_model(data)
-                loss = criterion(output, target)
-                loss.backward()
-                # dist.barrier()
-                if accumulated_gradients is None:
-                    accumulated_gradients = {name: torch.zeros_like(param.grad) for name, param in global_model.named_parameters() if param.requires_grad}
-                
-                for name, param in global_model.named_parameters():
-                    if param.requires_grad:
-                        accumulated_gradients[name] += param.grad / (len(selected_clients)*len(client_loader))
-        
-                # for model_param, global_param in zip(model.parameters(), global_model.parameters()):
-                #     if global_param.requires_grad:
-                #         model_param.grad += global_param.grad/(len(selected_clients)*len(client_loader))
-                # global_optimizer.step()
-                # aggregated_accuracy = test_model(global_model, test_loader)
-                # log_with_time(f"Global model accuracy at epoch: {epoch}, client {client_idx} and step {step} after aggregation: {aggregated_accuracy:.4f}")
+            model.load_state_dict(global_model.state_dict())
+            optimizer.zero_grad()
+            for epoch in range(EPOCHS_PER_CLIENT):
+                log_with_time(f"Training epoch {epoch + 1}")
+            
+                for step, (data, target) in enumerate(client_loader):
+                    log_with_time(f"Client {args.rank * NUM_CLIENTS_PER_NODE + client_idx}, Training step {step + 1}")
+                    data, target = data.to(device), target.to(device)
+                    optimizer.zero_grad()
+                    output = model(data)
+                    loss = criterion(output, target)
+                    loss.backward()
+                    optimizer.step()
+                    # dist.barrier()
+                    if accumulated_gradients is None:
+                        accumulated_gradients = {name: torch.zeros_like(param.grad) for name, param in global_model.named_parameters() if param.requires_grad}
+                    
+                    for name, param in global_model.named_parameters():
+                        if param.requires_grad:
+                            accumulated_gradients[name] += param.grad / (len(selected_clients)*len(client_loader)*EPOCHS_PER_CLIENT)
+            
+                    # for model_param, global_param in zip(model.parameters(), global_model.parameters()):
+                    #     if global_param.requires_grad:
+                    #         model_param.grad += global_param.grad/(len(selected_clients)*len(client_loader))
+                    # global_optimizer.step()
+                    # aggregated_accuracy = test_model(global_model, test_loader)
+                    # log_with_time(f"Global model accuracy at epoch: {epoch}, client {client_idx} and step {step} after aggregation: {aggregated_accuracy:.4f}")
         for name, param in global_model.named_parameters():
             if param.requires_grad:
                 param.grad=accumulated_gradients[name]
