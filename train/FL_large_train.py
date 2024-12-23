@@ -395,9 +395,9 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
                     optimizer.step()
                     # dist.barrier()
                     if accumulated_gradients is None:
-                        accumulated_gradients = {name: torch.zeros_like(param.grad) for name, param in global_model.named_parameters() if param.requires_grad}
+                        accumulated_gradients = {name: torch.zeros_like(param.grad) for name, param in model.named_parameters() if param.requires_grad}
                     
-                    for name, param in global_model.named_parameters():
+                    for name, param in model.named_parameters():
                         if param.requires_grad:
                             accumulated_gradients[name] += param.grad / (len(selected_clients)*len(client_loader)*EPOCHS_PER_CLIENT)
             
