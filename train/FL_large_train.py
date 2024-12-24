@@ -62,7 +62,7 @@ if args.dataset != 'MNIST':
     BATCH_SIZE = 125  #125
     EPOCHS_PER_CLIENT = 10#500 //2
     NUM_CLIENTS_PER_NODE = 5
-    NUM_ROUNDS = 500
+    NUM_ROUNDS = 3000
 
 # 初始化进程组
 dist.init_process_group(backend=args.dist_backend, init_method=args.dist_url, world_size=args.world_size, rank=args.rank)
