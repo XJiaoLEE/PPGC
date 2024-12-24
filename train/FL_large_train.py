@@ -356,7 +356,7 @@ from torch.optim.lr_scheduler import StepLR
 
 # Create client models only once
 client_models = [create_model() for _ in range(NUM_CLIENTS_PER_NODE)]
-optimizers = [optim.Adam(global_model.parameters(), lr=LEARNING_RATE) for model in client_models]
+optimizers = [optim.Adam(model.parameters(), lr=LEARNING_RATE) for model in client_models]
 schedulers = [StepLR(optimizer, step_size=50, gamma=0.1) for optimizer in optimizers]
 # optimizers = [torch.optim.Adam(model.parameters(), lr=LEARNING_RATE) for model in client_models]
 gradient_compressor = GradientCompressor(mechanism, sparsification_ratio, epsilon, args.out_bits)
