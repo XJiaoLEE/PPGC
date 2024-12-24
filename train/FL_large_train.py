@@ -433,7 +433,7 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
                     # global_optimizer.step()
                 aggregated_accuracy = test_model(model, test_loader)
                 log_with_time(f"Model accuracy at client {client_idx} : {aggregated_accuracy:.4f}")
-            scheduler.step()
+                scheduler.step()
         for name, param in global_model.named_parameters():
             if param.requires_grad:
                 param.grad=accumulated_gradients[name] / (len(selected_clients)*len(client_loader)*EPOCHS_PER_CLIENT)
