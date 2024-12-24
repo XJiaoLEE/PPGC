@@ -58,7 +58,7 @@ if epsilon > 0 :
     if mechanism == 'BASELINE' :
         mechanism = 'LDP-FL'
 if args.dataset != 'MNIST':
-    LEARNING_RATE = 0.04
+    LEARNING_RATE = 0.001
     BATCH_SIZE = 125  #125
     EPOCHS_PER_CLIENT = 10#500 //2
     NUM_CLIENTS_PER_NODE = 5
@@ -356,7 +356,7 @@ from torch.optim.lr_scheduler import StepLR
 
 # Create client models only once
 client_models = [create_model() for _ in range(NUM_CLIENTS_PER_NODE)]
-optimizers = [optim.SGD(model.parameters(), lr=0.1, momentum=0.9, weight_decay=5e-4) for model in client_models]
+optimizers = [optim.Adam(global_model.parameters(), lr=LEARNING_RATE) for model in client_models]
 schedulers = [StepLR(optimizer, step_size=50, gamma=0.1) for optimizer in optimizers]
 # optimizers = [torch.optim.Adam(model.parameters(), lr=LEARNING_RATE) for model in client_models]
 gradient_compressor = GradientCompressor(mechanism, sparsification_ratio, epsilon, args.out_bits)
@@ -366,9 +366,10 @@ for model in client_models:
     model.register_comm_hook(state, sparsify_comm_hook)
 global_model = create_model()
 # 使用 Adam 作为优化器，设置合适的学习率
-global_optimizer = optim.SGD(global_model.parameters(), lr=0.1, momentum=0.9, weight_decay=5e-4)
+global_optimizer = optim.Adam(global_model.parameters(), lr=LEARNING_RATE)
 global_scheduler = StepLR(global_optimizer, step_size=5, gamma=0.1)
 # global_optimizer = optim.Adam(global_model.parameters(), lr=LEARNING_RATE)  # 你可以根据需要调整lr
+# global_optimizer = optim.SGD(global_model.parameters(), lr=0.1, momentum=0.9, weight_decay=5e-4)
 gradient_compressor = GradientCompressor(mechanism, sparsification_ratio, epsilon, args.out_bits)
 state = {'gradient_compressor': gradient_compressor}
 # global_model.register_comm_hook(state, sparsify_comm_hook)
