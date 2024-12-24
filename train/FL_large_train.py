@@ -61,7 +61,7 @@ if args.dataset != 'MNIST':
     LEARNING_RATE = 0.001
     BATCH_SIZE = 125  #125
     EPOCHS_PER_CLIENT = 5#500 //2
-    NUM_CLIENTS_PER_NODE = 5
+    NUM_CLIENTS_PER_NODE = 2
     NUM_ROUNDS = 500
 
 # 初始化进程组
