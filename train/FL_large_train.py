@@ -352,11 +352,13 @@ def apply_global_mask(model, pruning_mask):
                 module.weight.requires_grad = False  # Optional: Freeze the pruned weights
 
 
-
+from torch.optim.lr_scheduler import StepLR
 
 # Create client models only once
 client_models = [create_model() for _ in range(NUM_CLIENTS_PER_NODE)]
-optimizers = [torch.optim.Adam(model.parameters(), lr=LEARNING_RATE) for model in client_models]
+optimizers = [optim.SGD(model.parameters(), lr=0.1, momentum=0.9, weight_decay=5e-4) for model in client_models]
+schedulers = [StepLR(optimizer, step_size=100, gamma=0.1) for optimizer in optimizers]
+# optimizers = [torch.optim.Adam(model.parameters(), lr=LEARNING_RATE) for model in client_models]
 gradient_compressor = GradientCompressor(mechanism, sparsification_ratio, epsilon, args.out_bits)
 state = {'gradient_compressor': gradient_compressor}
 for model in client_models:
@@ -364,7 +366,9 @@ for model in client_models:
     model.register_comm_hook(state, sparsify_comm_hook)
 global_model = create_model()
 # 使用 Adam 作为优化器，设置合适的学习率
-global_optimizer = optim.Adam(global_model.parameters(), lr=LEARNING_RATE)  # 你可以根据需要调整lr
+global_optimizer = optim.SGD(global_model.parameters(), lr=0.1, momentum=0.9, weight_decay=5e-4)
+global_scheduler = StepLR(global_optimizer, step_size=10, gamma=0.1)
+# global_optimizer = optim.Adam(global_model.parameters(), lr=LEARNING_RATE)  # 你可以根据需要调整lr
 gradient_compressor = GradientCompressor(mechanism, sparsification_ratio, epsilon, args.out_bits)
 state = {'gradient_compressor': gradient_compressor}
 # global_model.register_comm_hook(state, sparsify_comm_hook)
@@ -398,6 +402,7 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
             log_with_time(f"Training client {client_idx + 1}")
             model = client_models[client_idx]
             optimizer = optimizers[client_idx]
+            scheduler = schedulers[client_idx]
             criterion = nn.CrossEntropyLoss()
             client_loader = client_datasets[args.rank * NUM_CLIENTS_PER_NODE + client_idx]
             print("len(selected_clients)*len(client_loader)*EPOCHS_PER_CLIENT",len(selected_clients)*len(client_loader)*EPOCHS_PER_CLIENT)
@@ -428,11 +433,13 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
                     # global_optimizer.step()
                 aggregated_accuracy = test_model(model, test_loader)
                 log_with_time(f"Model accuracy at client {client_idx} : {aggregated_accuracy:.4f}")
+            scheduler.step()
         for name, param in global_model.named_parameters():
             if param.requires_grad:
                 param.grad=accumulated_gradients[name] / (len(selected_clients)*len(client_loader)*EPOCHS_PER_CLIENT)
         
         global_optimizer.step()
+        global_scheduler.step()
         aggregated_accuracy = test_model(global_model, test_loader)
         log_with_time(f"Global model accuracy after aggregation: {aggregated_accuracy:.4f}")
 
