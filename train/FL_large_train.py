@@ -335,7 +335,7 @@ def sparsify_comm_hook(state, bucket):
     print("decompressed_tensor",decompressed_tensor.shape)
 
     # Return the decompressed tensor divided by world size
-    fut = torch.futures.Future()
+    fut = torch.futures.Future() 
     # fut.set_result(decompressed_tensor / dist.get_world_size())
     decompressed_tensor = decompressed_tensor / dist.get_world_size()
     if accumulated_gradients is None:
