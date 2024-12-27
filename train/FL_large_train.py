@@ -336,7 +336,7 @@ def sparsify_comm_hook(state, bucket):
     # Return the decompressed tensor divided by world size
     fut = torch.futures.Future()
     # fut.set_result(decompressed_tensor / dist.get_world_size())
-    # decompressed_tensor = decompressed_tensor / dist.get_world_size()
+    decompressed_tensor = decompressed_tensor / dist.get_world_size()
     if accumulated_gradients is None:
         accumulated_gradients = decompressed_tensor.clone()
     else:
@@ -466,7 +466,7 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
                 print("optimizer.__getattribute__('param_groups')[0]['lr']",optimizer.__getattribute__('param_groups')[0]['lr'])
         for name, param in global_model.named_parameters():
             if param.requires_grad:
-                param.grad=accumulated_gradients[name] / (len(selected_clients)*len(client_loader)*EPOCHS_PER_CLIENT*args.world_size)
+                param.grad=accumulated_gradients[name] / (len(selected_clients)*len(client_loader)*EPOCHS_PER_CLIENT)
         
         global_optimizer.step()
         global_scheduler.step()
