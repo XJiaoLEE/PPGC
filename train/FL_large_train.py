@@ -342,14 +342,14 @@ def sparsify_comm_hook(state, bucket):
     # 如果 accumulated_gradients 为空，则初始化为与 tensor 相同形状的零张量
     if accumulated_gradients is None:
         accumulated_gradients = torch.zeros_like(tensor)
-
+        print("accumulated_gradients",accumulated_gradients.shape)
     # 将 decompressed_tensor 的每个部分累加到 accumulated_gradients 的正确位置
-    offset = 0
-    for param in tensor:
-        num_elements = param.numel()  # 当前部分的梯度元素数量
-        reshaped_grad = decompressed_tensor[offset:offset + num_elements].view(param.size())
-        accumulated_gradients[offset:offset + num_elements].add_(reshaped_grad)
-        offset += num_elements
+    # offset = 0
+    # for param in tensor:
+    #     num_elements = param.numel()  # 当前部分的梯度元素数量
+    #     reshaped_grad = decompressed_tensor[offset:offset + num_elements].view(param.size())
+    #     accumulated_gradients[offset:offset + num_elements].add_(reshaped_grad)
+    #     offset += num_elements
 
                     
     # if accumulated_gradients is None:
