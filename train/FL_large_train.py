@@ -343,6 +343,7 @@ def sparsify_comm_hook(state, bucket):
     if accumulated_gradients is None:
         accumulated_gradients = torch.zeros_like(tensor)
         print("accumulated_gradients",accumulated_gradients.shape)
+    print("tensor",decompressed_tensor)
     for namename in decompressed_tensor:
         print("namename",namename)
         accumulated_gradients[namename] += decompressed_tensor[namename]
