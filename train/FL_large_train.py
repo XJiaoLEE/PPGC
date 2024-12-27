@@ -449,7 +449,7 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
                     loss = criterion(output, target)
                     loss.backward()
                     optimizer.step()
-                    # dist.barrier()
+                    dist.barrier()
                     # if accumulated_gradients is None:
                     #     accumulated_gradients = {name: torch.zeros_like(param.grad) for name, param in model.named_parameters() if param.requires_grad}
                     
