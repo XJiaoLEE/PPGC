@@ -306,7 +306,7 @@ class GradientCompressor:
     
 def sparsify_comm_hook(state, bucket):
     global accumulated_gradients
-    global global_model
+    # global global_model
     # print("sparsify_comm_hook")
     tensor = bucket.buffer()
 
@@ -339,15 +339,18 @@ def sparsify_comm_hook(state, bucket):
     fut = torch.futures.Future() 
     # fut.set_result(decompressed_tensor / dist.get_world_size())
     decompressed_tensor = decompressed_tensor / dist.get_world_size()
+    # 如果 accumulated_gradients 为空，则初始化为与 tensor 相同形状的零张量
     if accumulated_gradients is None:
-        accumulated_gradients = {name: torch.zeros_like(param.grad) for name, param in global_model.named_parameters() if param.requires_grad}
-    offset=0
-    for name, param in global_model.named_parameters():
-        if param.requires_grad:
-            num_elements = param.grad.numel()
-            reshaped_grad = decompressed_tensor[offset:offset + num_elements].view(param.grad.size())
-            accumulated_gradients[name].add_(reshaped_grad)
-            offset += num_elements
+        accumulated_gradients = torch.zeros_like(tensor)
+
+    # 将 decompressed_tensor 的每个部分累加到 accumulated_gradients 的正确位置
+    offset = 0
+    for param in tensor:
+        num_elements = param.numel()  # 当前部分的梯度元素数量
+        reshaped_grad = decompressed_tensor[offset:offset + num_elements].view(param.size())
+        accumulated_gradients[offset:offset + num_elements].add_(reshaped_grad)
+        offset += num_elements
+
                     
     # if accumulated_gradients is None:
     #     accumulated_gradients = decompressed_tensor.clone()
