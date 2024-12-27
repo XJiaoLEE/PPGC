@@ -306,6 +306,7 @@ class GradientCompressor:
     
 def sparsify_comm_hook(state, bucket):
     global accumulated_gradients
+    global global_model
     # print("sparsify_comm_hook")
     tensor = bucket.buffer()
 
@@ -345,7 +346,7 @@ def sparsify_comm_hook(state, bucket):
         if param.requires_grad:
             num_elements = param.grad.numel()
             reshaped_grad = decompressed_tensor[offset:offset + num_elements].view(param.grad.size())
-            accumulated_gradients[name].copy_(reshaped_grad)
+            accumulated_gradients[name].add_(reshaped_grad)
             offset += num_elements
                     
     # if accumulated_gradients is None:
