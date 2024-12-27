@@ -346,7 +346,7 @@ def sparsify_comm_hook(state, bucket):
     print("tensor",decompressed_tensor)
     for namename in decompressed_tensor[0]:
         print("namename",namename)
-        accumulated_gradients[0][namename] += decompressed_tensor[0][namename]
+        accumulated_gradients[0][namename] += decompressed_tensor[0][namename] 
     # 将 decompressed_tensor 的每个部分累加到 accumulated_gradients 的正确位置
     # offset = 0
     # for param in tensor:
