@@ -64,7 +64,7 @@ if epsilon > 0 :
 #     NUM_CLIENTS_PER_NODE = 5
 #     NUM_ROUNDS = 3000
 if args.dataset != 'MNIST':
-    LEARNING_RATE = 0.01
+    LEARNING_RATE = 0.001
     BATCH_SIZE = 125  #125
     EPOCHS_PER_CLIENT = 100#500 //2
     NUM_CLIENTS_PER_NODE = 1
@@ -464,6 +464,7 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
         # global_scheduler.step()
         # aggregated_accuracy = test_model(global_model, test_loader)
         # log_with_time(f"Global model accuracy after aggregation: {aggregated_accuracy:.4f}")
+        # global_model.train()
 
 # 测试模型准确性
 def test_model(model, test_loader):
