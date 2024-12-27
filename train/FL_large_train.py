@@ -29,6 +29,7 @@ BATCH_SIZE = 150 #150          # 批大小32 300 FOR MNIST 200 FOR CIFAR100 125 
 LEARNING_RATE = 0.01    # 学习率
 epsilon = 0.0            # DP 使用的 epsilon 值
 NUM_CLIENTS_PER_NODE = 25  # 每个主机上的客户端数量125 
+accumulated_gradients=None
 
 # 检测是否有可用的 GPU，如果没有则使用 CPU
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -58,7 +59,7 @@ if epsilon > 0 :
     if mechanism == 'BASELINE' :
         mechanism = 'LDP-FL'
 if args.dataset != 'MNIST':
-    LEARNING_RATE = 0.0001
+    LEARNING_RATE = 0.001
     BATCH_SIZE = 125  #125
     EPOCHS_PER_CLIENT = 10#500 //2
     NUM_CLIENTS_PER_NODE = 5
@@ -304,6 +305,7 @@ class GradientCompressor:
         return torch.tensor(grad_np, dtype=grad.dtype, device=grad.device)
     
 def sparsify_comm_hook(state, bucket):
+    global accumulated_gradients
     # print("sparsify_comm_hook")
     tensor = bucket.buffer()
 
@@ -333,7 +335,13 @@ def sparsify_comm_hook(state, bucket):
 
     # Return the decompressed tensor divided by world size
     fut = torch.futures.Future()
-    fut.set_result(decompressed_tensor / dist.get_world_size())
+    # fut.set_result(decompressed_tensor / dist.get_world_size())
+    # decompressed_tensor = decompressed_tensor / dist.get_world_size()
+    if accumulated_gradients is None:
+        accumulated_gradients = decompressed_tensor.clone()
+    else:
+        accumulated_gradients.add_(decompressed_tensor)
+    fut.set_result(fut)
     return fut
 
 import torch.nn.utils.prune as prune
@@ -372,11 +380,10 @@ def apply_global_mask(model, pruning_mask):
 
 
 from torch.optim.lr_scheduler import StepLR
-
 # Create client models only once
 client_models = [create_model() for _ in range(NUM_CLIENTS_PER_NODE)]
 optimizers = [optim.Adam(model.parameters(), lr=LEARNING_RATE) for model in client_models]
-schedulers = [StepLR(optimizer, step_size=7, gamma=0.2) for optimizer in optimizers]
+schedulers = [StepLR(optimizer, step_size=10, gamma=0.8) for optimizer in optimizers]
 # optimizers = [torch.optim.Adam(model.parameters(), lr=LEARNING_RATE) for model in client_models]
 gradient_compressor = GradientCompressor(mechanism, sparsification_ratio, epsilon, args.out_bits)
 state = {'gradient_compressor': gradient_compressor}
@@ -386,7 +393,7 @@ for model in client_models:
 global_model = create_model()
 # 使用 Adam 作为优化器，设置合适的学习率
 global_optimizer = optim.Adam(global_model.parameters(), lr=LEARNING_RATE)
-global_scheduler = StepLR(global_optimizer, step_size=7, gamma=0.2)
+global_scheduler = StepLR(global_optimizer, step_size=10, gamma=0.8)
 # global_optimizer = optim.Adam(global_model.parameters(), lr=LEARNING_RATE)  # 你可以根据需要调整lr
 # global_optimizer = optim.SGD(global_model.parameters(), lr=0.1, momentum=0.9, weight_decay=5e-4)
 gradient_compressor = GradientCompressor(mechanism, sparsification_ratio, epsilon, args.out_bits)
@@ -401,7 +408,7 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
     # global_model.train()
     # Randomly select 50% of local clients
     total_local_clients = NUM_CLIENTS_PER_NODE 
-        
+    global accumulated_gradients   
     # for client_idx in selected_clients:
     #     model = client_models[client_idx]
     #     optimizer = optimizers[client_idx]
@@ -442,12 +449,12 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
                     loss.backward()
                     optimizer.step()
                     # dist.barrier()
-                    if accumulated_gradients is None:
-                        accumulated_gradients = {name: torch.zeros_like(param.grad) for name, param in model.named_parameters() if param.requires_grad}
+                    # if accumulated_gradients is None:
+                    #     accumulated_gradients = {name: torch.zeros_like(param.grad) for name, param in model.named_parameters() if param.requires_grad}
                     
-                    for name, param in model.named_parameters():
-                        if param.requires_grad:
-                            accumulated_gradients[name] += param.grad
+                    # for name, param in model.named_parameters():
+                    #     if param.requires_grad:
+                    #         accumulated_gradients[name] += param.grad
             
                     # for model_param, global_param in zip(model.parameters(), global_model.parameters()):
                     #     if global_param.requires_grad:
@@ -459,7 +466,7 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
                 print("optimizer.__getattribute__('param_groups')[0]['lr']",optimizer.__getattribute__('param_groups')[0]['lr'])
         for name, param in global_model.named_parameters():
             if param.requires_grad:
-                param.grad=accumulated_gradients[name] / (len(selected_clients)*len(client_loader)*EPOCHS_PER_CLIENT)
+                param.grad=accumulated_gradients[name] / (len(selected_clients)*len(client_loader)*EPOCHS_PER_CLIENT*args.world_size)
         
         global_optimizer.step()
         global_scheduler.step()
