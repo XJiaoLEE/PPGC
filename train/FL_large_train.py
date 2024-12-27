@@ -57,12 +57,31 @@ if sparsification_ratio > 0:
 if epsilon > 0 :
     if mechanism == 'BASELINE' :
         mechanism = 'LDP-FL'
+# if args.dataset != 'MNIST':
+#     LEARNING_RATE = 0.01
+#     BATCH_SIZE = 125  #125
+#     EPOCHS_PER_CLIENT = 20#500 //2
+#     NUM_CLIENTS_PER_NODE = 5
+#     NUM_ROUNDS = 3000
 if args.dataset != 'MNIST':
     LEARNING_RATE = 0.01
     BATCH_SIZE = 125  #125
     EPOCHS_PER_CLIENT = 20#500 //2
-    NUM_CLIENTS_PER_NODE = 5
+    NUM_CLIENTS_PER_NODE = 1
     NUM_ROUNDS = 3000
+
+# import wandb
+# wandb.init(project="federated-learning", config={
+#     "learning_rate": LEARNING_RATE,
+#     "num_rounds": NUM_ROUNDS,
+#     "num_clients_per_node": NUM_CLIENTS_PER_NODE,
+#     "epochs_per_client": EPOCHS_PER_CLIENT,
+#     "batch_size": BATCH_SIZE,
+#     "mechanism": mechanism,
+#     "epsilon": epsilon,
+#     "sparsification": sparsification_ratio,
+#     "dataset": args.dataset
+# })
 
 # 初始化进程组
 dist.init_process_group(backend=args.dist_backend, init_method=args.dist_url, world_size=args.world_size, rank=args.rank)
@@ -400,7 +419,7 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
         print("selected_clients",selected_clients)
         accumulated_gradients=None
         for client_idx in selected_clients:
-            log_with_time(f"Training client {client_idx + 1}")
+            log_with_time(f"Training client {client_idx}")
             model = client_models[client_idx]
             optimizer = optimizers[client_idx]
             scheduler = schedulers[client_idx]
