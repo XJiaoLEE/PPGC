@@ -333,7 +333,7 @@ def sparsify_comm_hook(state, bucket):
 
     # Decompress the tensor with combined values and indices
     decompressed_tensor = compressor.decompress((combined_values, combined_indices, numel), tensor.size())
-    print("decompressed_tensor",decompressed_tensor.shape)
+    print("decompressed_tensor",decompressed_tensor.shape) 
 
     # Return the decompressed tensor divided by world size
     fut = torch.futures.Future() 
