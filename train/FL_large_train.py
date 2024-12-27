@@ -340,8 +340,8 @@ def sparsify_comm_hook(state, bucket):
     decompressed_tensor = decompressed_tensor / dist.get_world_size()
     if accumulated_gradients is None:
         accumulated_gradients = decompressed_tensor.clone()
-    else:
-        accumulated_gradients.copy_(decompressed_tensor)
+    # else:
+    #     accumulated_gradients.copy_(decompressed_tensor)
     fut.set_result(tensor)
     return fut
 
