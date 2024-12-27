@@ -343,6 +343,9 @@ def sparsify_comm_hook(state, bucket):
     if accumulated_gradients is None:
         accumulated_gradients = torch.zeros_like(tensor)
         print("accumulated_gradients",accumulated_gradients.shape)
+    for namename in decompressed_tensor:
+        print("namename",namename)
+        accumulated_gradients[namename] += decompressed_tensor[namename]
     # 将 decompressed_tensor 的每个部分累加到 accumulated_gradients 的正确位置
     # offset = 0
     # for param in tensor:
