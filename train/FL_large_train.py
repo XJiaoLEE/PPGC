@@ -341,7 +341,7 @@ def sparsify_comm_hook(state, bucket):
         accumulated_gradients = decompressed_tensor.clone()
     else:
         accumulated_gradients.add_(decompressed_tensor)
-    fut.set_result(fut)
+    fut.set_result(tensor)
     return fut
 
 import torch.nn.utils.prune as prune
