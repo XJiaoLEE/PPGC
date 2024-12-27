@@ -339,7 +339,18 @@ def sparsify_comm_hook(state, bucket):
     # fut.set_result(decompressed_tensor / dist.get_world_size())
     decompressed_tensor = decompressed_tensor / dist.get_world_size()
     if accumulated_gradients is None:
-        accumulated_gradients = decompressed_tensor.clone()
+        accumulated_gradients = {name: torch.zeros_like(param.grad) for name, param in global_model.named_parameters() if param.requires_grad}
+    offset=0
+    for name, param in global_model.named_parameters():
+        if param.requires_grad:
+            num_elements = param.grad.numel()
+            reshaped_grad = decompressed_tensor[offset:offset + num_elements].view(param.grad.size())
+            accumulated_gradients[name].copy_(reshaped_grad)
+            offset += num_elements
+                    
+    # if accumulated_gradients is None:
+    #     accumulated_gradients = decompressed_tensor.clone()
+
     # else:
     #     accumulated_gradients.copy_(decompressed_tensor)
     fut.set_result(tensor)
