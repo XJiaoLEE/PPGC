@@ -60,7 +60,7 @@ if epsilon > 0 :
 if args.dataset != 'MNIST':
     LEARNING_RATE = 0.0001
     BATCH_SIZE = 125  #125
-    EPOCHS_PER_CLIENT = 1#500 //2
+    EPOCHS_PER_CLIENT = 10#500 //2
     NUM_CLIENTS_PER_NODE = 5
     NUM_ROUNDS = 3000
 # if args.dataset != 'MNIST':
