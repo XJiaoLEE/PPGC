@@ -427,7 +427,7 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
             client_loader = client_datasets[args.rank * NUM_CLIENTS_PER_NODE + client_idx]
             print("len(selected_clients)*len(client_loader)*EPOCHS_PER_CLIENT",len(selected_clients)*len(client_loader)*EPOCHS_PER_CLIENT)
     
-            model.load_state_dict(global_model.state_dict())
+            # model.load_state_dict(global_model.state_dict())
             for epoch in range(EPOCHS_PER_CLIENT):
                 log_with_time(f"Epoch {epoch + 1}")
             
@@ -454,14 +454,14 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
                 aggregated_accuracy = test_model(model, test_loader)
                 log_with_time(f"Model accuracy at client {client_idx} : {aggregated_accuracy:.4f}")
                 scheduler.step()
-        for name, param in global_model.named_parameters():
-            if param.requires_grad:
-                param.grad=accumulated_gradients[name] / (len(selected_clients)*len(client_loader)*EPOCHS_PER_CLIENT)
+        # for name, param in global_model.named_parameters():
+        #     if param.requires_grad:
+        #         param.grad=accumulated_gradients[name] / (len(selected_clients)*len(client_loader)*EPOCHS_PER_CLIENT)
         
-        global_optimizer.step()
-        global_scheduler.step()
-        aggregated_accuracy = test_model(global_model, test_loader)
-        log_with_time(f"Global model accuracy after aggregation: {aggregated_accuracy:.4f}")
+        # global_optimizer.step()
+        # global_scheduler.step()
+        # aggregated_accuracy = test_model(global_model, test_loader)
+        # log_with_time(f"Global model accuracy after aggregation: {aggregated_accuracy:.4f}")
 
 # 测试模型准确性
 def test_model(model, test_loader):
