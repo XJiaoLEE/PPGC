@@ -409,7 +409,7 @@ gradient_compressor = GradientCompressor(mechanism, sparsification_ratio, epsilo
 state = {'gradient_compressor': gradient_compressor}
 for model in client_models:
     model.train()
-    model.register_comm_hook(state, sparsify_comm_hook)
+    # model.register_comm_hook(state, sparsify_comm_hook)
 global_model = create_model()
 # 使用 Adam 作为优化器，设置合适的学习率
 global_optimizer = optim.Adam(global_model.parameters(), lr=LEARNING_RATE)
@@ -469,12 +469,12 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
                     loss.backward()
                     optimizer.step()
                     dist.barrier()
-                    # if accumulated_gradients is None:
-                    #     accumulated_gradients = {name: torch.zeros_like(param.grad) for name, param in model.named_parameters() if param.requires_grad}
+                    if accumulated_gradients is None:
+                        accumulated_gradients = {name: torch.zeros_like(param.grad) for name, param in model.named_parameters() if param.requires_grad}
                     
-                    # for name, param in model.named_parameters():
-                    #     if param.requires_grad:
-                    #         accumulated_gradients[name] += param.grad
+                    for name, param in model.named_parameters():
+                        if param.requires_grad:
+                            accumulated_gradients[name] += param.grad
             
                     # for model_param, global_param in zip(model.parameters(), global_model.parameters()):
                     #     if global_param.requires_grad:
