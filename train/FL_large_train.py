@@ -432,6 +432,7 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
                 log_with_time(f"Epoch {epoch + 1}")
             
                 for step, (data, target) in enumerate(client_loader):
+                    model.train()
                     log_with_time(f"Client {args.rank * NUM_CLIENTS_PER_NODE + client_idx}, Training step {step + 1}")
                     data, target = data.to(device), target.to(device)
                     optimizer.zero_grad()
