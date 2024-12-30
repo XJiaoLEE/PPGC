@@ -491,7 +491,8 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
                     print("name before aggregation",name,accumulated_gradients[name][0][0]) 
                     print("global name before aggregation",name,param.grad[0][0])  
                 dist.all_reduce(accumulated_gradients[name], op=dist.ReduceOp.SUM) 
-                param.grad=accumulated_gradients[name] / (len(selected_clients)*len(client_loader)*EPOCHS_PER_CLIENT*args.world_size)
+                param.grad=accumulated_gradients[name] 
+                # / (len(selected_clients)*len(client_loader)*EPOCHS_PER_CLIENT*args.world_size)
                 if name == "module.layer1.0.conv2.weight":
                     print("name after aggregation",name,accumulated_gradients[name][0][0])   
                     print("global name after aggregation",name,param.grad[0][0]) 
