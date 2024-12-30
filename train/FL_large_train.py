@@ -430,15 +430,6 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
     # Randomly select 50% of local clients
     total_local_clients = NUM_CLIENTS_PER_NODE 
     global accumulated_gradients   
-    # for client_idx in selected_clients:
-    #     model = client_models[client_idx]
-    #     optimizer = optimizers[client_idx]
-    #     # print("optimizer.learning rate", optimizer.__getattribute__('param_groups')[0]['lr'])
-    #     model.train()
-    #     criterion = nn.CrossEntropyLoss()
-    #     client_loader = client_datasets[args.rank * NUM_CLIENTS_PER_NODE + client_idx]
-    # model = create_model()   
-    # optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)  
     # Train the model for one epoch
     for round in range(NUM_ROUNDS):
         
@@ -454,7 +445,6 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
             scheduler = schedulers[client_idx]
             criterion = nn.CrossEntropyLoss()
             client_loader = client_datasets[args.rank * NUM_CLIENTS_PER_NODE + client_idx]
-            # print("len(selected_clients)*len(client_loader)*EPOCHS_PER_CLIENT",len(selected_clients)*len(client_loader)*EPOCHS_PER_CLIENT)
     
             model.load_state_dict(global_model.state_dict())
             for epoch in range(EPOCHS_PER_CLIENT):
@@ -477,10 +467,6 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
                             accumulated_gradients[name] += param.grad 
                 # for name, grad in accumulated_gradients.items():
                 #     print(f"Shape of gradient for {name}: {grad.shape}")
-                    # for model_param, global_param in zip(model.parameters(), global_model.parameters()):
-                    #     if global_param.requires_grad:
-                    #         model_param.grad += global_param.grad/(len(selected_clients)*len(client_loader))
-                    # global_optimizer.step()
                 # aggregated_accuracy = test_model(model, test_loader)
                 # log_with_time(f"Model accuracy at client {client_idx} : {aggregated_accuracy:.4f}")
                 scheduler.step()
