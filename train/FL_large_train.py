@@ -62,7 +62,7 @@ if args.dataset != 'MNIST':
     LEARNING_RATE = 0.0001
     BATCH_SIZE = 125  #125
     EPOCHS_PER_CLIENT = 10#500 //2
-    NUM_CLIENTS_PER_NODE = 2
+    NUM_CLIENTS_PER_NODE = 5
     NUM_ROUNDS = 3000
 # if args.dataset != 'MNIST':
 #     LEARNING_RATE = 0.001
@@ -502,7 +502,7 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
                 if name == "module.layer1.0.conv2.weight":
                     print("name after aggregation",name,accumulated_gradients[name][0][0])   
                     
-                    print("global after aggregation",param.grad[0][0])   
+                    # print("global after aggregation",param.grad[0][0])   
                     print("global paramter",param[0][0])
         # for name, param in global_model.named_parameters():
         #     if param.requires_grad:
