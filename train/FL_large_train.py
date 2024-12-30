@@ -403,7 +403,7 @@ from torch.optim.lr_scheduler import StepLR
 # Create client models only once
 client_models = [create_model() for _ in range(NUM_CLIENTS_PER_NODE)]
 optimizers = [optim.Adam(model.parameters(), lr=LEARNING_RATE) for model in client_models]
-schedulers = [StepLR(optimizer, step_size=30, gamma=0.8) for optimizer in optimizers]
+schedulers = [StepLR(optimizer, step_size=100, gamma=0.8) for optimizer in optimizers]
 # optimizers = [torch.optim.Adam(model.parameters(), lr=LEARNING_RATE) for model in client_models]
 gradient_compressor = GradientCompressor(mechanism, sparsification_ratio, epsilon, args.out_bits)
 state = {'gradient_compressor': gradient_compressor}
@@ -443,7 +443,7 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
     for round in range(NUM_ROUNDS):
         
         log_with_time(f"Round {round + 1}/{NUM_ROUNDS} started")
-        selected_clients = random.sample(range(total_local_clients), total_local_clients // 1)  # Randomly select half of the clients
+        selected_clients = random.sample(range(total_local_clients), total_local_clients // 2)  # Randomly select half of the clients
         print("selected_clients",selected_clients)
         accumulated_gradients=None
         global_model.train()
