@@ -488,9 +488,10 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
         for name, param in model.named_parameters():
             if param.requires_grad:        
                 dist.all_reduce(accumulated_gradients[name], op=dist.ReduceOp.SUM)
-        for name, param in global_model.named_parameters():
-            if param.requires_grad:
-                param.grad=accumulated_gradients[name] / (len(selected_clients)*len(client_loader)*EPOCHS_PER_CLIENT)
+                param.grad=accumulated_gradients[name] / (len(selected_clients)*len(client_loader)*EPOCHS_PER_CLIENT*args.world_size)
+        # for name, param in global_model.named_parameters():
+        #     if param.requires_grad:
+        #         param.grad=accumulated_gradients[name] / (len(selected_clients)*len(client_loader)*EPOCHS_PER_CLIENT)
         
         global_optimizer.step()
         global_scheduler.step()
