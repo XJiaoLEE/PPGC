@@ -487,9 +487,11 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
                 print("optimizer.__getattribute__('param_groups')[0]['lr']",optimizer.__getattribute__('param_groups')[0]['lr'])
         for name, param in model.named_parameters():
             if param.requires_grad:    
-                print("name before aggregation",name,accumulated_gradients[name].sum) 
+                if name == "module.layer1.0.conv2.weight":
+                    print("name before aggregation",name,accumulated_gradients[name][0]) 
                 dist.all_reduce(accumulated_gradients[name], op=dist.ReduceOp.SUM) 
-                print("name after aggregation",name,accumulated_gradients[name].sum)   
+                if name == "module.layer1.0.conv2.weight":
+                    print("name after aggregation",name,accumulated_gradients[name][0])   
                 param.grad=accumulated_gradients[name] / (len(selected_clients)*len(client_loader)*EPOCHS_PER_CLIENT*args.world_size)
         # for name, param in global_model.named_parameters():
         #     if param.requires_grad:
