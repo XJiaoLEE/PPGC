@@ -481,8 +481,8 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
                     #     if global_param.requires_grad:
                     #         model_param.grad += global_param.grad/(len(selected_clients)*len(client_loader))
                     # global_optimizer.step()
-                aggregated_accuracy = test_model(model, test_loader)
-                log_with_time(f"Model accuracy at client {client_idx} : {aggregated_accuracy:.4f}")
+                # aggregated_accuracy = test_model(model, test_loader)
+                # log_with_time(f"Model accuracy at client {client_idx} : {aggregated_accuracy:.4f}")
                 scheduler.step()
                 print("optimizer.__getattribute__('param_groups')[0]['lr']",optimizer.__getattribute__('param_groups')[0]['lr'])
         for name, param in model.named_parameters():
