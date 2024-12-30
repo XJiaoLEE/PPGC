@@ -512,6 +512,8 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
         for name, param in global_model.named_parameters():
             if param.requires_grad:    
                 if name == "module.layer1.0.conv2.weight":
+                    print("global gradient paramter",name,param.grad[0][0])
+
                     print("global paramter",name,param[0][0])
         aggregated_accuracy = test_model(global_model, test_loader)
         log_with_time(f"Global model accuracy after aggregation: {aggregated_accuracy:.4f}")
