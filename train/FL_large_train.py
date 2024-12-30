@@ -486,8 +486,10 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
                 scheduler.step()
                 print("optimizer.__getattribute__('param_groups')[0]['lr']",optimizer.__getattribute__('param_groups')[0]['lr'])
         for name, param in model.named_parameters():
-            if param.requires_grad:        
-                dist.all_reduce(accumulated_gradients[name], op=dist.ReduceOp.SUM)
+            if param.requires_grad:    
+                print("name before aggregation",name,accumulated_gradients[name].sum) 
+                dist.all_reduce(accumulated_gradients[name], op=dist.ReduceOp.SUM) 
+                print("name after aggregation",name,accumulated_gradients[name].sum)   
                 param.grad=accumulated_gradients[name] / (len(selected_clients)*len(client_loader)*EPOCHS_PER_CLIENT*args.world_size)
         # for name, param in global_model.named_parameters():
         #     if param.requires_grad:
@@ -497,6 +499,7 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
         global_scheduler.step()
         aggregated_accuracy = test_model(global_model, test_loader)
         log_with_time(f"Global model accuracy after aggregation: {aggregated_accuracy:.4f}")
+        print("global_optimizer.__getattribute__('param_groups')[0]['lr']",global_optimizer.__getattribute__('param_groups')[0]['lr'])
 
 # 测试模型准确性
 def test_model(model, test_loader):
