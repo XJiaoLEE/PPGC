@@ -454,7 +454,7 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
             scheduler = schedulers[client_idx]
             criterion = nn.CrossEntropyLoss()
             client_loader = client_datasets[args.rank * NUM_CLIENTS_PER_NODE + client_idx]
-            print("len(selected_clients)*len(client_loader)*EPOCHS_PER_CLIENT",len(selected_clients)*len(client_loader)*EPOCHS_PER_CLIENT)
+            # print("len(selected_clients)*len(client_loader)*EPOCHS_PER_CLIENT",len(selected_clients)*len(client_loader)*EPOCHS_PER_CLIENT)
     
             model.load_state_dict(global_model.state_dict())
             for epoch in range(EPOCHS_PER_CLIENT):
@@ -462,7 +462,7 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
             
                 for step, (data, target) in enumerate(client_loader):
                     model.train()
-                    log_with_time(f"Client {args.rank * NUM_CLIENTS_PER_NODE + client_idx}, Training step {step + 1}")
+                    # log_with_time(f"Client {args.rank * NUM_CLIENTS_PER_NODE + client_idx}, Training step {step + 1}")
                     data, target = data.to(device), target.to(device)
                     optimizer.zero_grad()
                     output = model(data)
@@ -485,9 +485,9 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
                 # log_with_time(f"Model accuracy at client {client_idx} : {aggregated_accuracy:.4f}")
                 scheduler.step()
             
-            # aggregated_accuracy = test_model(model, test_loader)
-            # log_with_time(f"Model accuracy at client {client_idx} : {aggregated_accuracy:.4f}")
-            # print("optimizer.__getattribute__('param_groups')[0]['lr']",optimizer.__getattribute__('param_groups')[0]['lr'])
+            aggregated_accuracy = test_model(model, test_loader)
+            log_with_time(f"Model accuracy at client {client_idx} : {aggregated_accuracy:.4f}")
+            print("optimizer.__getattribute__('param_groups')[0]['lr']",optimizer.__getattribute__('param_groups')[0]['lr'])
         global_optimizer.zero_grad()
         dist.barrier()
         for name, param in model.named_parameters():
