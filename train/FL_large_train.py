@@ -488,7 +488,7 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
             aggregated_accuracy = test_model(model, test_loader)
             log_with_time(f"Model accuracy at client {client_idx} : {aggregated_accuracy:.4f}")
             print("optimizer.__getattribute__('param_groups')[0]['lr']",optimizer.__getattribute__('param_groups')[0]['lr'])
-        for name, param in model.named_parameters():
+        for name, param in global_model.named_parameters():
             if param.requires_grad:    
                 if name == "module.layer1.0.conv2.weight":
                     print("name before aggregation",name,accumulated_gradients[name][0][0]) 
@@ -506,7 +506,7 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
         
         global_optimizer.step()
         global_scheduler.step()
-        for name, param in model.named_parameters():
+        for name, param in global_model.named_parameters():
             if param.requires_grad:    
                 if name == "module.layer1.0.conv2.weight":
                     print("global paramter",name,param[0][0])
