@@ -469,7 +469,6 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
                     loss = criterion(output, target)
                     loss.backward()
                     optimizer.step()
-                    dist.barrier()
                     if accumulated_gradients is None:
                         accumulated_gradients = {name: torch.zeros_like(param.grad) for name, param in model.named_parameters() if param.requires_grad}
                     
@@ -489,6 +488,7 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
             log_with_time(f"Model accuracy at client {client_idx} : {aggregated_accuracy:.4f}")
             print("optimizer.__getattribute__('param_groups')[0]['lr']",optimizer.__getattribute__('param_groups')[0]['lr'])
         global_optimizer.zero_grad()
+        dist.barrier()
         for name, param in model.named_parameters():
             if param.requires_grad:    
                 dist.all_reduce(accumulated_gradients[name], op=dist.ReduceOp.SUM) 
