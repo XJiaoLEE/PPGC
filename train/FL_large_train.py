@@ -475,8 +475,8 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
                     for name, param in model.named_parameters():
                         if param.requires_grad:
                             accumulated_gradients[name] += param.grad 
-                for name, grad in accumulated_gradients.items():
-                    print(f"Shape of gradient for {name}: {grad.shape}")
+                # for name, grad in accumulated_gradients.items():
+                #     print(f"Shape of gradient for {name}: {grad.shape}")
                     # for model_param, global_param in zip(model.parameters(), global_model.parameters()):
                     #     if global_param.requires_grad:
                     #         model_param.grad += global_param.grad/(len(selected_clients)*len(client_loader))
@@ -504,7 +504,7 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
                 if name == "module.layer1.0.conv2.weight":
                     print("name after aggregation",name,accumulated_gradients[name][0][0])   
                     
-                    # print("global after aggregation",param.grad[0][0])   
+                    print("global after aggregation",param.grad[0][0])   
                     print("global paramter",param.data[0][0])
         # for name, param in global_model.named_parameters():
         #     if param.requires_grad:
