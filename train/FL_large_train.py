@@ -403,7 +403,7 @@ from torch.optim.lr_scheduler import StepLR
 # Create client models only once
 client_models = [create_model() for _ in range(NUM_CLIENTS_PER_NODE)]
 optimizers = [optim.Adam(model.parameters(), lr=LEARNING_RATE) for model in client_models]
-schedulers = [StepLR(optimizer, step_size=100, gamma=0.8) for optimizer in optimizers]
+schedulers = [StepLR(optimizer, step_size=70, gamma=0.8) for optimizer in optimizers]
 # optimizers = [torch.optim.Adam(model.parameters(), lr=LEARNING_RATE) for model in client_models]
 gradient_compressor = GradientCompressor(mechanism, sparsification_ratio, epsilon, args.out_bits)
 state = {'gradient_compressor': gradient_compressor}
@@ -414,7 +414,7 @@ for model in client_models:
 global_model = create_model()
 # 使用 Adam 作为优化器，设置合适的学习率
 global_optimizer = optim.Adam(global_model.parameters(), lr=LEARNING_RATE*5)
-global_scheduler = StepLR(global_optimizer, step_size=10, gamma=0.8)
+global_scheduler = StepLR(global_optimizer, step_size=7, gamma=0.8)
 # global_optimizer = optim.Adam(global_model.parameters(), lr=LEARNING_RATE)  # 你可以根据需要调整lr
 # global_optimizer = optim.SGD(global_model.parameters(), lr=0.1, momentum=0.9, weight_decay=5e-4)
 gradient_compressor = GradientCompressor(mechanism, sparsification_ratio, epsilon, args.out_bits)
@@ -479,8 +479,8 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
         for name, param in model.named_parameters():
             if param.requires_grad:    
                 dist.all_reduce(accumulated_gradients[name], op=dist.ReduceOp.SUM) 
-                if name == "module.layer1.0.conv2.weight":
-                    print("name before aggregation",name,accumulated_gradients[name][0][0]) 
+                # if name == "module.layer1.0.conv2.weight":
+                #     print("name before aggregation",name,accumulated_gradients[name][0][0]) 
         for name, param in global_model.named_parameters():
             if param.requires_grad: 
                 param.grad=accumulated_gradients[name].to(param.device) / (len(selected_clients)*len(client_loader)*EPOCHS_PER_CLIENT*args.world_size)
