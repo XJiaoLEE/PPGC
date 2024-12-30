@@ -443,7 +443,7 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
     for round in range(NUM_ROUNDS):
         
         log_with_time(f"Round {round + 1}/{NUM_ROUNDS} started")
-        selected_clients = random.sample(range(total_local_clients), total_local_clients // 2.5)  # Randomly select half of the clients
+        selected_clients = random.sample(range(total_local_clients), total_local_clients // 2)  # Randomly select half of the clients
         print("selected_clients",selected_clients)
         accumulated_gradients=None
         global_model.train()
