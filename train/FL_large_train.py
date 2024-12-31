@@ -413,8 +413,8 @@ for model in client_models:
     # model.register_comm_hook(state, sparsify_comm_hook)
 global_model = create_model()
 # 使用 Adam 作为优化器，设置合适的学习率
-global_optimizer = optim.Adam(global_model.parameters(), lr=LEARNING_RATE)
-global_scheduler = StepLR(global_optimizer, step_size=30, gamma=1)
+global_optimizer = optim.Adam(global_model.parameters(), lr=LEARNING_RATE*5)
+global_scheduler = StepLR(global_optimizer, step_size=5, gamma=0.5)
 # global_optimizer = optim.Adam(global_model.parameters(), lr=LEARNING_RATE)  # 你可以根据需要调整lr
 # global_optimizer = optim.SGD(global_model.parameters(), lr=0.1, momentum=0.9, weight_decay=5e-4)
 gradient_compressor = GradientCompressor(mechanism, sparsification_ratio, epsilon, args.out_bits)
