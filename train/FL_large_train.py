@@ -259,6 +259,7 @@ class GradientCompressor:
 
     
     def gradient_hook(self, grad):
+        print("gradient_hook")
         grad_np1 = grad.cpu().numpy()
         
         shape = grad_np1.shape
