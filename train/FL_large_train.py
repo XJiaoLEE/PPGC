@@ -259,6 +259,7 @@ class GradientCompressor:
 
     
     def gradient_hook(self, param):
+        print("param",param)
         grad = param.grad
         print("grad",grad)
         print("grad.shape",grad.shape)
