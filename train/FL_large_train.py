@@ -227,8 +227,8 @@ class GradientCompressor:
         tensor = tensor.view(-1)
         numel = tensor.numel()
         num_selects = max(1, int(numel * self.compression_ratio))
-        print("Flatten the tensor",tensor)
-        print("numel,num_selects,self.compression_ratio",numel,num_selects,self.compression_ratio)
+        # print("Flatten the tensor",tensor)
+        # print("numel,num_selects,self.compression_ratio",numel,num_selects,self.compression_ratio)
 
         # Get the importance (absolute values)
         importance = tensor.abs()
@@ -238,15 +238,15 @@ class GradientCompressor:
 
         # Extract the values at these indices
         values = tensor[indices]
-        print("compress values",values)
+        # print("compress values",values)
         if self.compressor_instance is not None:
             device_info = values.device
             values = values.cpu().numpy()
-            print("values.cpu().numpy()",values)
+            # print("values.cpu().numpy()",values)
             values = self.compressor_instance.compress(values)
-            print("self.compressor_instance.compress(values)",values)
+            # print("self.compressor_instance.compress(values)",values)
             values = torch.from_numpy(values).to(device_info)
-            print("torch.from_numpy(values).to(device_info)",values)
+            # print("torch.from_numpy(values).to(device_info)",values)
         return values, indices, numel
 
     def compress(self, tensor):
@@ -273,13 +273,13 @@ class GradientCompressor:
     def gradient_hook(self, grad):
         # print("param",param)
         # grad = param.grad
-        print("before gradient_hook grad",grad)
-        print("before gradient_hook grad.shape",grad.shape)
+        # print("before gradient_hook grad",grad)
+        # print("before gradient_hook grad.shape",grad.shape)
         values, indices, numel = self.compress(grad)
         decompressed_tensor = self.decompress((values, indices, numel), grad.shape)
         grad = decompressed_tensor
-        print("after gradient_hook  grad",grad)
-        print("after gradient_hook  grad.shape",grad.shape)
+        # print("after gradient_hook  grad",grad)
+        # print("after gradient_hook  grad.shape",grad.shape)
         # param.grad = decompressed_tensor
         return grad
 
