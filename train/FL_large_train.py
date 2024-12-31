@@ -259,31 +259,38 @@ class GradientCompressor:
 
     
     def gradient_hook(self, grad):
-        grad_np1 = grad.cpu().numpy()
+        values, indices, numel = self.compress(grad)
+        decompressed_tensor = self.decompress((values, indices, numel), grad.size())
+        return decompressed_tensor
+
+
+
+    # def gradient_hook(self, grad):
+    #     grad_np1 = grad.cpu().numpy()
         
-        shape = grad_np1.shape
-        grad_np = grad_np1.flatten()
-        # Step 1: Apply sparsification if TopK is enabled
-        if self.topk_instance is not None:
-            values, indices = self.topk_instance.sparsify(grad_np)
-        else:
-            values = grad_np
-            indices = None
+    #     shape = grad_np1.shape
+    #     grad_np = grad_np1.flatten()
+    #     # Step 1: Apply sparsification if TopK is enabled
+    #     if self.topk_instance is not None:
+    #         values, indices = self.topk_instance.sparsify(grad_np)
+    #     else:
+    #         values = grad_np
+    #         indices = None
 
-        # Step 2: Compress non-zero values only
-        if self.compressor_instance is not None:
-            values = self.compressor_instance.compress(values)
+    #     # Step 2: Compress non-zero values only
+    #     if self.compressor_instance is not None:
+    #         values = self.compressor_instance.compress(values)
         
-        # Step 3: Reconstruct the sparse gradient (with compression applied)
-        if indices is not None:
-            grad_np = np.zeros_like(grad_np)
-            grad_np[indices] = values
-        else:
-            grad_np = values
+    #     # Step 3: Reconstruct the sparse gradient (with compression applied)
+    #     if indices is not None:
+    #         grad_np = np.zeros_like(grad_np)
+    #         grad_np[indices] = values
+    #     else:
+    #         grad_np = values
 
-        grad_np = grad_np.reshape(shape)
+    #     grad_np = grad_np.reshape(shape)
 
-        return torch.tensor(grad_np, dtype=grad.dtype, device=grad.device)
+    #     return torch.tensor(grad_np, dtype=grad.dtype, device=grad.device)
     
 def sparsify_comm_hook(state, bucket):
     global accumulated_gradients
