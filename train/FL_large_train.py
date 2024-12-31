@@ -242,8 +242,11 @@ class GradientCompressor:
         if self.compressor_instance is not None:
             device_info = values.device
             values = values.cpu().numpy()
+            print("values.cpu().numpy()",values)
             values = self.compressor_instance.compress(values)
+            print("self.compressor_instance.compress(values)",values)
             values = torch.from_numpy(values).to(device_info)
+            print("torch.from_numpy(values).to(device_info)",values)
         return values, indices, numel
 
     def compress(self, tensor):
