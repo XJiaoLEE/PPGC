@@ -266,6 +266,8 @@ class GradientCompressor:
         values, indices, numel = self.compress(grad)
         decompressed_tensor = self.decompress((values, indices, numel), grad.size())
         grad = decompressed_tensor
+        print("grad",grad)
+        print("grad.shape",grad.shape)
         # param.grad = decompressed_tensor
         return grad
 
