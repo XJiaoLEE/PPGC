@@ -401,22 +401,19 @@ def apply_global_mask(model, pruning_mask):
 
 from torch.optim.lr_scheduler import StepLR
 # Create client models only once
-client_models = [create_model() for _ in range(NUM_CLIENTS_PER_NODE)]
-optimizers = [optim.Adam(model.parameters(), lr=LEARNING_RATE) for model in client_models]
-schedulers = [StepLR(optimizer, step_size=300, gamma=0.5) for optimizer in optimizers]
+# client_models = [create_model() for _ in range(NUM_CLIENTS_PER_NODE)]
+
 # optimizers = [torch.optim.Adam(model.parameters(), lr=LEARNING_RATE) for model in client_models]
 gradient_compressor = GradientCompressor(mechanism, sparsification_ratio, epsilon, args.out_bits)
 state = {'gradient_compressor': gradient_compressor}
-for model in client_models:
-    model.train()
-    # model.re
-    # model.register_comm_hook(state, sparsify_comm_hook)
+
 global_model = create_model()
+global_model_state = create_model()
 # 使用 Adam 作为优化器，设置合适的学习率
 global_optimizer = optim.Adam(global_model.parameters(), lr=LEARNING_RATE*5)
 global_scheduler = StepLR(global_optimizer, step_size=5, gamma=0.5)
-# global_optimizer = optim.Adam(global_model.parameters(), lr=LEARNING_RATE)  # 你可以根据需要调整lr
-# global_optimizer = optim.SGD(global_model.parameters(), lr=0.1, momentum=0.9, weight_decay=5e-4)
+optimizers = [optim.Adam(global_model.parameters(), lr=LEARNING_RATE) for i in range(NUM_CLIENTS_PER_NODE)]
+schedulers = [StepLR(optimizer, step_size=300, gamma=0.5) for optimizer in optimizers]
 gradient_compressor = GradientCompressor(mechanism, sparsification_ratio, epsilon, args.out_bits)
 state = {'gradient_compressor': gradient_compressor}
 # global_model.register_comm_hook(state, sparsify_comm_hook)
@@ -440,29 +437,29 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
         global_model.train()
         for client_idx in selected_clients:
             log_with_time(f"Training client {client_idx}")
-            model = client_models[client_idx]
+            global_model.load_state_dict(global_model_state.state_dict())
             optimizer = optimizers[client_idx]
             scheduler = schedulers[client_idx]
             criterion = nn.CrossEntropyLoss()
             client_loader = client_datasets[args.rank * NUM_CLIENTS_PER_NODE + client_idx]
     
-            model.load_state_dict(global_model.state_dict())
+            # model.load_state_dict(global_model.state_dict())
             for epoch in range(EPOCHS_PER_CLIENT):
                 log_with_time(f"Epoch {epoch + 1}")
             
                 for step, (data, target) in enumerate(client_loader):
-                    model.train()
+                    global_model.train()
                     # log_with_time(f"Client {args.rank * NUM_CLIENTS_PER_NODE + client_idx}, Training step {step + 1}")
                     data, target = data.to(device), target.to(device)
                     optimizer.zero_grad()
-                    output = model(data)
+                    output = global_model(data)
                     loss = criterion(output, target)
                     loss.backward()
                     optimizer.step()
                     if accumulated_gradients is None:
-                        accumulated_gradients = {name: torch.zeros_like(param.grad) for name, param in model.named_parameters() if param.requires_grad}
+                        accumulated_gradients = {name: torch.zeros_like(param.grad) for name, param in global_model.named_parameters() if param.requires_grad}
                     
-                    for name, param in model.named_parameters():
+                    for name, param in global_model.named_parameters():
                         if param.requires_grad:
                             accumulated_gradients[name] += param.grad 
                 # for name, grad in accumulated_gradients.items():
@@ -471,12 +468,12 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
                 # log_with_time(f"Model accuracy at client {client_idx} : {aggregated_accuracy:.4f}")
                 scheduler.step()
             
-            aggregated_accuracy = test_model(model, test_loader)
+            aggregated_accuracy = test_model(global_model, test_loader)
             log_with_time(f"Model accuracy at client {client_idx} : {aggregated_accuracy:.4f}")
             print("optimizer.__getattribute__('param_groups')[0]['lr']",optimizer.__getattribute__('param_groups')[0]['lr'])
         global_optimizer.zero_grad()
         dist.barrier()
-        for name, param in model.named_parameters():
+        for name, param in global_model.named_parameters():
             if param.requires_grad:    
                 dist.all_reduce(accumulated_gradients[name], op=dist.ReduceOp.SUM) 
                 # if name == "module.layer1.0.conv2.weight":
@@ -491,7 +488,7 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
         
         global_optimizer.step()
         global_scheduler.step()
-
+        global_model_state.load_state_dict(global_model.state_dict())
         aggregated_accuracy = test_model(global_model, test_loader)
         log_with_time(f"Global model accuracy after aggregation: {aggregated_accuracy:.4f}")
         print("global_optimizer.__getattribute__('param_groups')[0]['lr']",global_optimizer.__getattribute__('param_groups')[0]['lr'])
