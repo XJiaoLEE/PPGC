@@ -225,6 +225,8 @@ class GradientCompressor:
         tensor = tensor.view(-1)
         numel = tensor.numel()
         num_selects = max(1, int(numel * self.compression_ratio))
+        print("Flatten the tensor",tensor)
+        print("numel,num_selects",numel,num_selects)
 
         # Get the importance (absolute values)
         importance = tensor.abs()
@@ -234,6 +236,7 @@ class GradientCompressor:
 
         # Extract the values at these indices
         values = tensor[indices]
+        print("compress values",values)
         if self.compressor_instance is not None:
             device_info = values.device
             values = values.cpu().numpy()
