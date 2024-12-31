@@ -259,11 +259,15 @@ class GradientCompressor:
     def decompress(self, compressed_tensor, original_size):
         values, indices, numel = compressed_tensor
         # Create an empty tensor of the original size
-        decompressed_tensor = torch.zeros(original_size, device=values.device)
-        # Put the values back to their original positions
-        decompressed_tensor.index_put_([indices], values)
+        tmp = torch.zeros(numel, device=values.device)
+        tmp.index_put_([indices], values)
         # Reshape back to the original shape
-        return decompressed_tensor.view(original_size)
+        return tmp.view(original_size)
+        # decompressed_tensor = torch.zeros(original_size, device=values.device)
+        # # Put the values back to their original positions
+        # decompressed_tensor.index_put_([indices], values)
+        # # Reshape back to the original shape
+        # return decompressed_tensor.view(original_size)
 
     
     def gradient_hook(self, grad):
