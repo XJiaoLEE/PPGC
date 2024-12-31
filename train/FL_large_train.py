@@ -226,7 +226,7 @@ class GradientCompressor:
         numel = tensor.numel()
         num_selects = max(1, int(numel * self.compression_ratio))
         print("Flatten the tensor",tensor)
-        print("numel,num_selects",numel,num_selects)
+        print("numel,num_selects,self.compression_ratio",numel,num_selects,self.compression_ratio)
 
         # Get the importance (absolute values)
         importance = tensor.abs()
