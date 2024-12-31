@@ -62,7 +62,7 @@ if args.dataset != 'MNIST':
     LEARNING_RATE = 0.0001
     BATCH_SIZE = 125  #125
     EPOCHS_PER_CLIENT = 10#500 //2
-    NUM_CLIENTS_PER_NODE = 5
+    NUM_CLIENTS_PER_NODE = 40
     NUM_ROUNDS = 3000
 # if args.dataset != 'MNIST':
 #     LEARNING_RATE = 0.001
@@ -423,15 +423,12 @@ client_datasets, test_loader = load_data()
 # Train client function
 def train_epoch(global_model, global_optimizer, client_datasets, test_loader, mechanism='BASELINE', out_bits=1):
     log_with_time(f"Start training ....")
-    # global_model.train()
-    # Randomly select 50% of local clients
     total_local_clients = NUM_CLIENTS_PER_NODE 
     global accumulated_gradients   
-    # Train the model for one epoch
     for round in range(NUM_ROUNDS):
         
         log_with_time(f"Round {round + 1}/{NUM_ROUNDS} started")
-        selected_clients = random.sample(range(total_local_clients), total_local_clients // 1)  # Randomly select half of the clients
+        selected_clients = random.sample(range(total_local_clients), total_local_clients // 2)  # Randomly select half of the clients
         print("selected_clients",selected_clients)
         accumulated_gradients=None
         global_model.train()
@@ -442,14 +439,12 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
             scheduler = schedulers[client_idx]
             criterion = nn.CrossEntropyLoss()
             client_loader = client_datasets[args.rank * NUM_CLIENTS_PER_NODE + client_idx]
-    
-            # model.load_state_dict(global_model.state_dict())
             for epoch in range(EPOCHS_PER_CLIENT):
                 log_with_time(f"Epoch {epoch + 1}")
             
                 for step, (data, target) in enumerate(client_loader):
                     global_model.train()
-                    # log_with_time(f"Client {args.rank * NUM_CLIENTS_PER_NODE + client_idx}, Training step {step + 1}")
+                    log_with_time(f"Client {args.rank * NUM_CLIENTS_PER_NODE + client_idx}, Training step {step + 1}")
                     data, target = data.to(device), target.to(device)
                     optimizer.zero_grad()
                     output = global_model(data)
@@ -472,10 +467,10 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
             log_with_time(f"Model accuracy at client {client_idx} : {aggregated_accuracy:.4f}")
             print("optimizer.__getattribute__('param_groups')[0]['lr']",optimizer.__getattribute__('param_groups')[0]['lr'])
         global_optimizer.zero_grad()
-        dist.barrier()
-        for name, param in global_model.named_parameters():
-            if param.requires_grad:    
-                dist.all_reduce(accumulated_gradients[name], op=dist.ReduceOp.SUM) 
+        # dist.barrier()
+        # for name, param in global_model.named_parameters():
+        #     if param.requires_grad:    
+        #         dist.all_reduce(accumulated_gradients[name], op=dist.ReduceOp.SUM) 
                 # if name == "module.layer1.0.conv2.weight":
                 #     print("name before aggregation",name,accumulated_gradients[name][0][0]) 
         for name, param in global_model.named_parameters():
