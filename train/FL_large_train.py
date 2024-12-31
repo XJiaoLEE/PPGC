@@ -260,8 +260,8 @@ class GradientCompressor:
     
     def gradient_hook(self, param):
         grad = param.grad
+        print("grad",grad)
         print("grad.shape",grad.shape)
-        print(grad)
         values, indices, numel = self.compress(grad)
         decompressed_tensor = self.decompress((values, indices, numel), grad.size())
         param.grad = decompressed_tensor
