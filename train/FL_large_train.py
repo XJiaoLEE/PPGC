@@ -204,6 +204,8 @@ class GradientCompressor:
         self.epsilon = epsilon
         self.out_bits = out_bits
         self.compression_ratio = sparsification_ratio
+        if self.compression_ratio == 0:
+            self.compression_ratio = 1.0
         self.topk_instance = TopK(sparsification_ratio) if sparsification_ratio > 0 else None
         self.compressor_instance = None
         if self.mechanism == 'BASELINE':
