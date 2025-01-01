@@ -58,11 +58,17 @@ if sparsification_ratio > 0:
 if epsilon > 0 :
     if mechanism == 'BASELINE' :
         mechanism = 'LDP-FL'
+# if args.dataset != 'MNIST':
+#     LEARNING_RATE = 0.0001
+#     BATCH_SIZE = 125  #125
+#     EPOCHS_PER_CLIENT = 10#500 //2
+#     NUM_CLIENTS_PER_NODE = 40
+#     NUM_ROUNDS = 300
 if args.dataset != 'MNIST':
     LEARNING_RATE = 0.0001
     BATCH_SIZE = 125  #125
     EPOCHS_PER_CLIENT = 10#500 //2
-    NUM_CLIENTS_PER_NODE = 40
+    NUM_CLIENTS_PER_NODE = 80
     NUM_ROUNDS = 300
 
 # 初始化进程组
