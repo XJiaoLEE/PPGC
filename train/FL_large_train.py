@@ -28,7 +28,7 @@ EPOCHS_PER_CLIENT = 5    # 每轮客户端本地训练次数 4 150
 BATCH_SIZE = 150 #150          # 批大小32 300 FOR MNIST 200 FOR CIFAR100 125 FOR CIFAR10
 LEARNING_RATE = 0.01    # 学习率
 epsilon = 0.0            # DP 使用的 epsilon 值
-NUM_CLIENTS_PER_NODE = 25  # 每个主机上的客户端数量125 
+NUM_CLIENTS_PER_NODE = 80  # 每个主机上的客户端数量125 
 accumulated_gradients=None
 
 # 检测是否有可用的 GPU，如果没有则使用 CPU
@@ -437,7 +437,7 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
     for round in range(NUM_ROUNDS):
         
         log_with_time(f"Round {round + 1}/{NUM_ROUNDS} started")
-        selected_clients = random.sample(range(total_local_clients), total_local_clients // 10)  # Randomly select half of the clients
+        selected_clients = random.sample(range(total_local_clients), total_local_clients // 2)  # Randomly select half of the clients
         print("selected_clients",selected_clients)
         accumulated_gradients=None
         global_model.train()
