@@ -77,7 +77,8 @@ dist.init_process_group(backend=args.dist_backend, init_method=args.dist_url, wo
 # Create log directory and log filename, and redirect output
 log_dir = "FLlogs_afsub"
 os.makedirs(log_dir, exist_ok=True)
-log_filename = os.path.join(log_dir, f"{args.dataset}_{mechanism}_outbits{args.out_bits}_epsilon{epsilon}_sparsification{args.sparsification}_large.log")
+timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+log_filename = os.path.join(log_dir, f"{args.dataset}_{mechanism}_outbits{args.out_bits}_epsilon{epsilon}_sparsification{args.sparsification}_{timestamp}.log")
 sys.stdout = open(log_filename, "w")
 print(f"Logging to {log_filename}")
 pruning_mask = {}
@@ -422,9 +423,9 @@ global_model_state = create_model()
 
 global_model = create_model()
 # Register gradient hook for compression
-for param in global_model.parameters():
-    if param.requires_grad:
-        param.register_hook(gradient_compressor.gradient_hook)
+# for param in global_model.parameters():
+#     if param.requires_grad:
+#         param.register_hook(gradient_compressor.gradient_hook)
 global_optimizer = optim.Adam(global_model.parameters(), lr=LEARNING_RATE*5)
 global_scheduler = StepLR(global_optimizer, step_size=5, gamma=0.5)
 optimizers = [optim.Adam(global_model.parameters(), lr=LEARNING_RATE) for i in range(NUM_CLIENTS_PER_NODE)]
@@ -448,6 +449,7 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
         accumulated_gradients=None
         global_model.train()
         for client_idx in selected_clients:
+            accumulated_gradients_client=None
             log_with_time(f"Training client {client_idx}")
             global_model.load_state_dict(global_model_state.state_dict())
             optimizer = optimizers[client_idx]
@@ -466,14 +468,22 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
                     loss = criterion(output, target)
                     loss.backward()
                     optimizer.step()
-                    if accumulated_gradients is None:
-                        accumulated_gradients = {name: torch.zeros_like(param.grad) for name, param in global_model.named_parameters() if param.requires_grad}
+                    if accumulated_gradients_client is None:
+                        accumulated_gradients_client = {name: torch.zeros_like(param.grad) for name, param in global_model.named_parameters() if param.requires_grad}
                     
                     for name, param in global_model.named_parameters():
                         if param.requires_grad:
-                            accumulated_gradients[name] += param.grad 
+                            accumulated_gradients_client[name] += param.grad 
                 scheduler.step()
             
+            if accumulated_gradients is None:
+                        accumulated_gradients = {name: torch.zeros_like(param.grad) for name, param in global_model.named_parameters() if param.requires_grad}
+                    
+            for param in global_model.parameters():
+                if param.requires_grad:
+                    accumulated_gradients_client[name] = gradient_compressor.gradient_hook(accumulated_gradients_client[name])
+                    accumulated_gradients[name] += accumulated_gradients_client[name]
+
             aggregated_accuracy = test_model(global_model, test_loader)
             log_with_time(f"Model accuracy at client {client_idx} : {aggregated_accuracy:.4f}")
             print("optimizer.__getattribute__('param_groups')[0]['lr']",optimizer.__getattribute__('param_groups')[0]['lr'])
