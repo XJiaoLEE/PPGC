@@ -78,7 +78,7 @@ dist.init_process_group(backend=args.dist_backend, init_method=args.dist_url, wo
 log_dir = "FLlogs_afsub"
 os.makedirs(log_dir, exist_ok=True)
 timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-log_filename = os.path.join(log_dir, f"{args.dataset}_{mechanism}_outbits{args.out_bits}_epsilon{epsilon}_sparsification{args.sparsification}_{timestamp}.log")
+log_filename = os.path.join(log_dir, f"{args.dataset}_{mechanism}_outbits{args.out_bits}_epsilon{epsilon}_sparsification{args.sparsification}_NUM_CLIENTS_PER_NODE{NUM_CLIENTS_PER_NODE}_{timestamp}.log")
 sys.stdout = open(log_filename, "w")
 print(f"Logging to {log_filename}")
 pruning_mask = {}
@@ -479,7 +479,7 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
             if accumulated_gradients is None:
                         accumulated_gradients = {name: torch.zeros_like(param.grad) for name, param in global_model.named_parameters() if param.requires_grad}
                     
-            for param in global_model.parameters():
+            for name, param in global_model.named_parameters():
                 if param.requires_grad:
                     accumulated_gradients_client[name] = gradient_compressor.gradient_hook(accumulated_gradients_client[name])
                     accumulated_gradients[name] += accumulated_gradients_client[name]
