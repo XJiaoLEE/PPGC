@@ -69,9 +69,9 @@ if args.dataset != 'MNIST':
     LEARNING_RATE = 0.0001
     BATCH_SIZE = 125  #125
     EPOCHS_PER_CLIENT = 10#500 //2
-    NUM_CLIENTS_PER_NODE = 80 #100 #80
+    NUM_CLIENTS_PER_NODE = 100 #100 #80
     NUM_ROUNDS = 300 
-    PARTITION = 2
+    PARTITION = 5
 
 # 初始化进程组
 dist.init_process_group(backend=args.dist_backend, init_method=args.dist_url, world_size=args.world_size, rank=args.rank)
@@ -80,7 +80,7 @@ dist.init_process_group(backend=args.dist_backend, init_method=args.dist_url, wo
 log_dir = "FLlogs_afsub"
 os.makedirs(log_dir, exist_ok=True)
 timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-log_filename = os.path.join(log_dir, f"{args.dataset}_{mechanism}_outbits{args.out_bits}_epsilon{epsilon}_sparsification{args.sparsification}_NUM_CLIENTS_PER_NODE{NUM_CLIENTS_PER_NODE}_{timestamp}.log")
+log_filename = os.path.join(log_dir, f"{args.dataset}_{mechanism}_outbits{args.out_bits}_epsilon{epsilon}_sparsification{args.sparsification}_NUM_CLIENTS_PER_NODE{NUM_CLIENTS_PER_NODE}/{PARTITION}_{timestamp}.log")
 sys.stdout = open(log_filename, "w")
 print(f"Logging to {log_filename}")
 pruning_mask = {}
