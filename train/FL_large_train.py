@@ -80,7 +80,7 @@ dist.init_process_group(backend=args.dist_backend, init_method=args.dist_url, wo
 log_dir = "FLlogs_afsub"
 os.makedirs(log_dir, exist_ok=True)
 timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-log_filename = os.path.join(log_dir, f"{args.dataset}_{mechanism}_outbits{args.out_bits}_epsilon{epsilon}_sparsification{args.sparsification}_NUM_CLIENTS_PER_NODE{NUM_CLIENTS_PER_NODE}/{PARTITION}_{timestamp}.log")
+log_filename = os.path.join(log_dir, f"{args.dataset}_{mechanism}_outbits{args.out_bits}_epsilon{epsilon}_sparsification{args.sparsification}_NUM_CLIENTS_PER_NODE{NUM_CLIENTS_PER_NODE}-{PARTITION}_{timestamp}.log")
 sys.stdout = open(log_filename, "w")
 print(f"Logging to {log_filename}")
 pruning_mask = {}
