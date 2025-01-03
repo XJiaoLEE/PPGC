@@ -29,6 +29,7 @@ BATCH_SIZE = 150 #150          # 批大小32 300 FOR MNIST 200 FOR CIFAR100 125 
 LEARNING_RATE = 0.01    # 学习率
 epsilon = 0.0            # DP 使用的 epsilon 值
 NUM_CLIENTS_PER_NODE = 80  # 每个主机上的客户端数量125 
+PARTITION = 2
 accumulated_gradients=None
 
 # 检测是否有可用的 GPU，如果没有则使用 CPU
@@ -68,8 +69,9 @@ if args.dataset != 'MNIST':
     LEARNING_RATE = 0.0001
     BATCH_SIZE = 125  #125
     EPOCHS_PER_CLIENT = 10#500 //2
-    NUM_CLIENTS_PER_NODE = 100 #80
+    NUM_CLIENTS_PER_NODE = 80 #100 #80
     NUM_ROUNDS = 300 
+    PARTITION = 2
 
 # 初始化进程组
 dist.init_process_group(backend=args.dist_backend, init_method=args.dist_url, world_size=args.world_size, rank=args.rank)
@@ -444,7 +446,7 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
     for round in range(NUM_ROUNDS):
         
         log_with_time(f"Round {round + 1}/{NUM_ROUNDS} started")
-        selected_clients = random.sample(range(total_local_clients), total_local_clients // 5)  # Randomly select half of the clients
+        selected_clients = random.sample(range(total_local_clients), total_local_clients // PARTITION)  # Randomly select half of the clients
         print("selected_clients",selected_clients)
         accumulated_gradients=None
         global_model.train()
