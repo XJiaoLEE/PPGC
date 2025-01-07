@@ -428,7 +428,7 @@ global_model = create_model()
 # for param in global_model.parameters():
 #     if param.requires_grad:
 #         param.register_hook(gradient_compressor.gradient_hook)
-global_optimizer = optim.Adam(global_model.parameters(), lr=LEARNING_RATE)
+global_optimizer = optim.Adam(global_model.parameters(), lr=LEARNING_RATE*5)
 global_scheduler = StepLR(global_optimizer, step_size=5, gamma=0.5)
 optimizers = [optim.Adam(global_model.parameters(), lr=LEARNING_RATE) for i in range(NUM_CLIENTS_PER_NODE)]
 schedulers = [StepLR(optimizer, step_size=50, gamma=0.5) for optimizer in optimizers]
