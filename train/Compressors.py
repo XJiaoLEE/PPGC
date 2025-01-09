@@ -37,6 +37,10 @@ class PPGC:
         return np.array(outputs, dtype=np.float32), probabilities
 
     def compress(self, param):
+        #---------在这里加入PPAGC的自适应模块，当quitbit=0时，进行自适应
+        #根据每次输入的梯度，计算梯度的范围，然后计算quitbit，进而计算outputs和probabilities
+
+
         #gradient_vector = gradient_vector + self.error_feedback[name]
 
         # 将梯度向量展平为一维
