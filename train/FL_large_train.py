@@ -26,7 +26,7 @@ print(f"CUDA version: {torch.version.cuda}")
 NUM_ROUNDS = 150          # 联邦学习轮数
 EPOCHS_PER_CLIENT = 1    # 每轮客户端本地训练次数 4 150
 BATCH_SIZE = 150 #150          # 批大小32 300 FOR MNIST 200 FOR CIFAR100 125 FOR CIFAR10
-LEARNING_RATE = 0.01    # 学习率
+LEARNING_RATE = 0.001    # 学习率
 epsilon = 0.0            # DP 使用的 epsilon 值
 NUM_CLIENTS_PER_NODE = 100  # 每个主机上的客户端数量125 
 PARTITION = 5
