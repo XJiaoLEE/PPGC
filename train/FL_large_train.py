@@ -23,10 +23,11 @@ print(f"Is CUDA available: {torch.cuda.is_available()}")
 print(f"CUDA version: {torch.version.cuda}")
 
 # 参数设置
-NUM_ROUNDS = 150          # 联邦学习轮数
+NUM_ROUNDS = 300          # 联邦学习轮数
 EPOCHS_PER_CLIENT = 1    # 每轮客户端本地训练次数 4 150
 BATCH_SIZE = 150 #150          # 批大小32 300 FOR MNIST 200 FOR CIFAR100 125 FOR CIFAR10
 LEARNING_RATE = 0.001    # 学习率
+GLOBAL_LEARNING_RATE = LEARNING_RATE
 epsilon = 0.0            # DP 使用的 epsilon 值
 NUM_CLIENTS_PER_NODE = 100  # 每个主机上的客户端数量125 
 PARTITION = 5
@@ -72,6 +73,7 @@ if args.dataset != 'MNIST':
     NUM_CLIENTS_PER_NODE = 100 #100 #80
     NUM_ROUNDS = 300 
     PARTITION = 5
+    GLOBAL_LEARNING_RATE = LEARNING_RATE * 5 
 
 # 初始化进程组
 dist.init_process_group(backend=args.dist_backend, init_method=args.dist_url, world_size=args.world_size, rank=args.rank)
@@ -80,7 +82,7 @@ dist.init_process_group(backend=args.dist_backend, init_method=args.dist_url, wo
 log_dir = "FLlogs_afsub"
 os.makedirs(log_dir, exist_ok=True)
 timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-log_filename = os.path.join(log_dir, f"{args.dataset}_{mechanism}_outbits{args.out_bits}_epsilon{epsilon}_sparsification{args.sparsification}_NUM_CLIENTS_PER_NODE{NUM_CLIENTS_PER_NODE}-{PARTITION}_{timestamp}.log")
+log_filename = os.path.join(log_dir, f"{args.dataset}_{mechanism}_outbits{args.out_bits}_epsilon{epsilon}_sparsification{args.sparsification}_NUM_CLIENTS_PER_NODE{NUM_CLIENTS_PER_NODE}-{PARTITION}_LR{GLOBAL_LEARNING_RATE}-{LEARNING_RATE}_{timestamp}.log")
 sys.stdout = open(log_filename, "w")
 print(f"Logging to {log_filename}")
 pruning_mask = {}
@@ -428,7 +430,7 @@ global_model = create_model()
 # for param in global_model.parameters():
 #     if param.requires_grad:
 #         param.register_hook(gradient_compressor.gradient_hook)
-global_optimizer = optim.Adam(global_model.parameters(), lr=LEARNING_RATE*5)
+global_optimizer = optim.Adam(global_model.parameters(), lr=GLOBAL_LEARNING_RATE)
 global_scheduler = StepLR(global_optimizer, step_size=5, gamma=0.5)
 optimizers = [optim.Adam(global_model.parameters(), lr=LEARNING_RATE) for i in range(NUM_CLIENTS_PER_NODE)]
 schedulers = [StepLR(optimizer, step_size=50, gamma=0.5) for optimizer in optimizers]
