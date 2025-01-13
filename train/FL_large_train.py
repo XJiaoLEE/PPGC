@@ -74,12 +74,20 @@ if args.dataset == 'CIFAR10':
     NUM_ROUNDS = 300 
     PARTITION = 5
     GLOBAL_LEARNING_RATE = LEARNING_RATE * 5 
-
+if args.dataset == 'CIFAR100':
+    LEARNING_RATE = 0.0001
+    BATCH_SIZE = 60  #125
+    EPOCHS_PER_CLIENT = 10#500 //2
+    NUM_CLIENTS_PER_NODE = 100 #100 #80
+    NUM_ROUNDS = 300 
+    PARTITION = 10
+    GLOBAL_LEARNING_RATE = LEARNING_RATE * 5 
 # 初始化进程组
 dist.init_process_group(backend=args.dist_backend, init_method=args.dist_url, world_size=args.world_size, rank=args.rank)
 
 # Create log directory and log filename, and redirect output
 log_dir = "FLlogs_afsub"
+log_dir = log_dir + '/' + args.dataset
 os.makedirs(log_dir, exist_ok=True)
 timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 log_filename = os.path.join(log_dir, f"{args.dataset}_{mechanism}_outbits{args.out_bits}_epsilon{epsilon}_sparsification{args.sparsification}_NUM_CLIENTS_PER_NODE{NUM_CLIENTS_PER_NODE}-{PARTITION}_LR{GLOBAL_LEARNING_RATE}-{LEARNING_RATE}_{timestamp}.log")
@@ -186,9 +194,13 @@ def load_data():
 # Create model based on dataset selection
 def create_model():
     if args.dataset == 'CIFAR100':
-        from torchvision.models import ResNet50_Weights
-        model = models.resnet50(weights=ResNet50_Weights.IMAGENET1K_V1).to(device)
-        model.fc = nn.Linear(model.fc.in_features, 100).to(device)
+        from torchvision.models import efficientnet_b1
+        model = efficientnet_b1(pretrained=True)
+        model.classifier[1] = nn.Linear(model.classifier[1].in_features, 100)
+        model = model.to(device)
+        # from torchvision.models import ResNet50_Weights
+        # model = models.resnet50(weights=ResNet50_Weights.IMAGENET1K_V1).to(device)
+        # model.fc = nn.Linear(model.fc.in_features, 100).to(device)
     elif args.dataset == 'CIFAR10':
         model = models.resnet18(num_classes=10).to(device)
         # from torchvision.models import ResNet18_Weights
@@ -422,10 +434,16 @@ global_model = create_model()
 # for param in global_model.parameters():
 #     if param.requires_grad:
 #         param.register_hook(gradient_compressor.gradient_hook)
-global_optimizer = optim.Adam(global_model.parameters(), lr=GLOBAL_LEARNING_RATE)
-global_scheduler = StepLR(global_optimizer, step_size=5, gamma=0.5)
-optimizers = [optim.Adam(global_model.parameters(), lr=LEARNING_RATE) for i in range(NUM_CLIENTS_PER_NODE)]
-schedulers = [StepLR(optimizer, step_size=50, gamma=0.5) for optimizer in optimizers]
+if args.dataset=='CIFAR100':
+    global_optimizer = optim.AdamW(global_model.parameters(), lr=GLOBAL_LEARNING_RATE, weight_decay=1e-4)
+    global_scheduler = optim.lr_scheduler.CosineAnnealingLR(global_optimizer, T_max=NUM_ROUNDS)
+    optimizers = [optim.AdamW(global_model.parameters(), lr=GLOBAL_LEARNING_RATE, weight_decay=1e-4) for i in range(NUM_CLIENTS_PER_NODE)]
+    schedulers = [optim.lr_scheduler.CosineAnnealingLR(global_optimizer, T_max=NUM_ROUNDS) for optimizer in optimizers]
+else:
+    global_optimizer = optim.Adam(global_model.parameters(), lr=GLOBAL_LEARNING_RATE)
+    global_scheduler = StepLR(global_optimizer, step_size=5, gamma=0.5)
+    optimizers = [optim.Adam(global_model.parameters(), lr=LEARNING_RATE) for i in range(NUM_CLIENTS_PER_NODE)]
+    schedulers = [StepLR(optimizer, step_size=50, gamma=0.5) for optimizer in optimizers]
 gradient_compressor = GradientCompressor(mechanism, sparsification_ratio, epsilon, args.out_bits)
 state = {'gradient_compressor': gradient_compressor}
 # global_model.register_comm_hook(state, sparsify_comm_hook)
@@ -507,18 +525,33 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
 
 # 测试模型准确性
 def test_model(model, test_loader):
+    if args.dataset == 'CIFAR100':
+        model.eval()
+        correct_top1 = 0
+        correct_top5 = 0
+        with torch.no_grad():
+            for data, target in test_loader:
+                data, target = data.to(device), target.to(device)
+                output = model(data)
+                _, pred_top5 = output.topk(5, dim=1, largest=True, sorted=True)  # 取前5
+                correct_top1 += (pred_top5[:, 0] == target).sum().item()
+                correct_top5 += sum([target[i].item() in pred_top5[i].tolist() for i in range(target.size(0))])
+        # top1_accuracy = correct_top1 / len(test_loader.dataset)
+        top5_accuracy = correct_top5 / len(test_loader.dataset)
+        return top5_accuracy
     # log_with_time("Testing model accuracy")
-    model.eval()
-    correct = 0
-    with torch.no_grad():
-        for data, target in test_loader:
-            data, target = data.to(device), target.to(device)
-            output = model(data)
-            pred = output.argmax(dim=1, keepdim=True)
-            correct += pred.eq(target.view_as(pred)).sum().item()
-    accuracy = correct / len(test_loader.dataset)
-    # log_with_time(f"Model accuracy: {accuracy:.4f}")
-    return accuracy
+    else:
+        model.eval()
+        correct = 0
+        with torch.no_grad():
+            for data, target in test_loader:
+                data, target = data.to(device), target.to(device)
+                output = model(data)
+                pred = output.argmax(dim=1, keepdim=True)
+                correct += pred.eq(target.view_as(pred)).sum().item()
+        accuracy = correct / len(test_loader.dataset)
+        # log_with_time(f"Model accuracy: {accuracy:.4f}")
+        return accuracy
 
 train_epoch(global_model, global_optimizer, client_datasets, test_loader, mechanism, args.out_bits)
 
