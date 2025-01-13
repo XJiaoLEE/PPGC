@@ -10,7 +10,7 @@ from torchvision import datasets, transforms, models
 from torch.utils.data import DataLoader, random_split
 from mechanisms import RAPPORMechanism, Laplace
 from Compressors import PPGC, QSGD, TernGrad, OneBit,TopK
-from load_model import Cifar10FLNet, ConvNet
+from load_model import Cifar10FLNet, ConvNet, CNN_DropOut
 import torch.distributed as dist
 import torch.multiprocessing as mp
 from torch.nn.parallel import DistributedDataParallel as DDP
@@ -48,8 +48,8 @@ parser.add_argument('--dist_backend', type=str, default='nccl', help='Distribute
 parser.add_argument('--dist_url', type=str, default='tcp://<master_ip>:<port>', help='URL used to set up distributed training')
 parser.add_argument('--epsilon', type=float, default=0, help='Privacy budget for Differential Privacy')
 parser.add_argument('--sparsification', type=float, default=0, help='Sparsification ratio for TopK')
-parser.add_argument('--dataset', type=str, default='MNIST', choices=['MNIST', 'CIFAR10', 'CIFAR100'],
-                    help='Choose the dataset: "MNIST", "CIFAR10", or "CIFAR100"')
+parser.add_argument('--dataset', type=str, default='MNIST', choices=['MNIST', 'CIFAR10', 'CIFAR100', 'EMNIST'],
+                    help='Choose the dataset: "MNIST", "CIFAR10", "CIFAR100", or "EMNIST"')
 args = parser.parse_args()
 epsilon = args.epsilon
 sparsification_ratio = args.sparsification
@@ -66,7 +66,7 @@ if epsilon > 0 :
 #     EPOCHS_PER_CLIENT = 10#500 //2
 #     NUM_CLIENTS_PER_NODE = 40
 #     NUM_ROUNDS = 300
-if args.dataset != 'MNIST':
+if args.dataset == 'CIFAR10':
     LEARNING_RATE = 0.0001
     BATCH_SIZE = 125  #125
     EPOCHS_PER_CLIENT = 10#500 //2
@@ -100,7 +100,6 @@ def load_data():
     if train_dataset is None or test_dataset is None:
         data_path = './data'
         if args.dataset == 'CIFAR100':
-            # LEARNING_RATE = 0.001
             transform_train = transforms.Compose([
                 transforms.RandomResizedCrop(224, scale=(0.8, 1.0)),  # 随机裁剪并调整到64x64大小
                 transforms.RandomHorizontalFlip(),                    # 随机水平翻转
@@ -117,23 +116,6 @@ def load_data():
             train_dataset = datasets.CIFAR100(root=data_path, train=True, download=True, transform=transform_train)
             test_dataset = datasets.CIFAR100(root=data_path, train=False, download=True, transform=transform_test)
         elif args.dataset == 'CIFAR10':
-            # IMAGENET_MEAN = [0.485, 0.456, 0.406]
-            # IMAGENET_STD = [0.229, 0.224, 0.225]
-
-            # # 数据预处理
-            # transform_train = transforms.Compose([
-            #     transforms.RandomCrop(32, padding=4),  # 随机裁剪和填充，以增强数据
-            #     transforms.RandomHorizontalFlip(),     # 随机水平翻转
-            #     transforms.Resize(224),                # 调整图片大小为224x224，以适应ResNet输入要求
-            #     transforms.ToTensor(),                 # 转换为tensor
-            #     transforms.Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD),  # 使用ImageNet的均值和标准差
-            # ])
-            
-            # transform_test = transforms.Compose([
-            #     transforms.Resize(224),                # 调整图片大小为224x224
-            #     transforms.ToTensor(),
-            #     transforms.Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD),  # 使用ImageNet的均值和标准差
-            # ])
             # CIFAR10的均值和标准差
             CIFAR_MEAN = [0.49139968, 0.48215827, 0.44653124]
             CIFAR_STD = [0.24703233, 0.24348505, 0.26158768]
@@ -155,6 +137,16 @@ def load_data():
             # 加载训练集和测试集
             train_dataset = datasets.CIFAR10(root=data_path, train=True, download=True, transform=transform_train)
             test_dataset = datasets.CIFAR10(root=data_path, train=False, download=True, transform=transform_test)
+        elif args.dataset == 'EMNIST':
+            transform = transforms.Compose([
+                transforms.ToTensor(),
+                transforms.Normalize((0.1307,), (0.3081,))  # EMNIST 和 MNIST 的均值和标准差相同
+            ])
+
+            # 加载 EMNIST 数据集
+            train_dataset = datasets.EMNIST(root=data_path, split='byclass', train=True, download=True, transform=transform)
+            test_dataset = datasets.EMNIST(root=data_path, split='byclass', train=False, download=True, transform=transform)
+        
         else:  # MNIST
             transform = transforms.Compose([
                 transforms.ToTensor(),
