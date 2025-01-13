@@ -80,7 +80,7 @@ if args.dataset == 'CIFAR100':
     EPOCHS_PER_CLIENT = 10#500 //2
     NUM_CLIENTS_PER_NODE = 100 #100 #80
     NUM_ROUNDS = 300 
-    PARTITION = 10
+    PARTITION = 5
     GLOBAL_LEARNING_RATE = LEARNING_RATE * 5 
 # 初始化进程组
 dist.init_process_group(backend=args.dist_backend, init_method=args.dist_url, world_size=args.world_size, rank=args.rank)
@@ -438,12 +438,12 @@ if args.dataset=='CIFAR100':
     global_optimizer = optim.AdamW(global_model.parameters(), lr=GLOBAL_LEARNING_RATE, weight_decay=1e-4)
     global_scheduler = optim.lr_scheduler.CosineAnnealingLR(global_optimizer, T_max=NUM_ROUNDS)
     optimizers = [optim.AdamW(global_model.parameters(), lr=GLOBAL_LEARNING_RATE, weight_decay=1e-4) for i in range(NUM_CLIENTS_PER_NODE)]
-    schedulers = [optim.lr_scheduler.CosineAnnealingLR(global_optimizer, T_max=NUM_ROUNDS) for optimizer in optimizers]
+    schedulers = [optim.lr_scheduler.CosineAnnealingLR(global_optimizer, T_max=NUM_ROUNDS*EPOCHS_PER_CLIENT) for optimizer in optimizers]
 else:
     global_optimizer = optim.Adam(global_model.parameters(), lr=GLOBAL_LEARNING_RATE)
     global_scheduler = StepLR(global_optimizer, step_size=5, gamma=0.5)
     optimizers = [optim.Adam(global_model.parameters(), lr=LEARNING_RATE) for i in range(NUM_CLIENTS_PER_NODE)]
-    schedulers = [StepLR(optimizer, step_size=50, gamma=0.5) for optimizer in optimizers]
+    schedulers = [StepLR(optimizer, step_size=5*EPOCHS_PER_CLIENT, gamma=0.5) for optimizer in optimizers]
 gradient_compressor = GradientCompressor(mechanism, sparsification_ratio, epsilon, args.out_bits)
 state = {'gradient_compressor': gradient_compressor}
 # global_model.register_comm_hook(state, sparsify_comm_hook)
