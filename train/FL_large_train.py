@@ -77,7 +77,7 @@ if args.dataset == 'CIFAR10':
 if args.dataset == 'CIFAR100':
     LEARNING_RATE = 0.0001
     BATCH_SIZE = 60  #125
-    EPOCHS_PER_CLIENT = 10#500 //2
+    EPOCHS_PER_CLIENT = 4#500 //2
     NUM_CLIENTS_PER_NODE = 100 #100 #80
     NUM_ROUNDS = 300 
     PARTITION = 5
