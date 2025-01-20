@@ -77,9 +77,9 @@ if args.dataset == 'CIFAR10':
 if args.dataset == 'CIFAR100':
     LEARNING_RATE = 0.0001
     BATCH_SIZE = 60  #125
-    EPOCHS_PER_CLIENT = 2#10
+    EPOCHS_PER_CLIENT = 1#10
     NUM_CLIENTS_PER_NODE = 100 #100 #80
-    NUM_ROUNDS = 300 
+    NUM_ROUNDS = 200 
     PARTITION = 5
     GLOBAL_LEARNING_RATE = LEARNING_RATE * 5 
 # 初始化进程组
