@@ -86,7 +86,7 @@ if args.dataset == 'CIFAR100':
 dist.init_process_group(backend=args.dist_backend, init_method=args.dist_url, world_size=args.world_size, rank=args.rank)
 
 # Create log directory and log filename, and redirect output
-log_dir = "FLlogs_clipping"
+log_dir = "FLlogs_betterclipping_alpha"
 log_dir = log_dir + '/' + args.dataset
 os.makedirs(log_dir, exist_ok=True)
 timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
@@ -145,9 +145,9 @@ def load_data():
             # 加载训练集和测试集
             train_dataset = datasets.CIFAR10(root=data_path, train=True, download=True, transform=transform_train)
             test_dataset = datasets.CIFAR10(root=data_path, train=False, download=True, transform=transform_test)
-            client_datasets = random_split(train_dataset, [len(train_dataset) // (args.world_size * NUM_CLIENTS_PER_NODE)] * (args.world_size * NUM_CLIENTS_PER_NODE))
-            client_datasets = [DataLoader(ds, batch_size=BATCH_SIZE, shuffle=True, drop_last=True) for ds in client_datasets]
-            return client_datasets, DataLoader(test_dataset, batch_size=BATCH_SIZE)
+            # client_datasets = random_split(train_dataset, [len(train_dataset) // (args.world_size * NUM_CLIENTS_PER_NODE)] * (args.world_size * NUM_CLIENTS_PER_NODE))
+            # client_datasets = [DataLoader(ds, batch_size=BATCH_SIZE, shuffle=True, drop_last=True) for ds in client_datasets]
+            # return client_datasets, DataLoader(test_dataset, batch_size=BATCH_SIZE)
         elif args.dataset == 'EMNIST':
             transform = transforms.Compose([
                 transforms.ToTensor(),
@@ -172,7 +172,7 @@ def load_data():
         num_classes = len(train_dataset.classes)
 
         # Use Dirichlet distribution to assign data to clients
-        alpha = 5  # Controls the degree of non-IID 0.5
+        alpha = 0.5  # Controls the degree of non-IID 0.5
         client_loaders = []
         idxs_per_class = {i: np.where(np.array(train_dataset.targets) == i)[0] for i in range(num_classes)}
         client_idxs = [[] for _ in range(num_clients)]
@@ -187,7 +187,7 @@ def load_data():
         
         for client_data in client_idxs:
             client_subset = torch.utils.data.Subset(train_dataset, client_data)
-            client_loaders.append(DataLoader(client_subset, batch_size=BATCH_SIZE, shuffle=True))
+            client_loaders.append(DataLoader(client_subset, batch_size=BATCH_SIZE, shuffle=True, drop_last=True))
 
         return client_loaders, DataLoader(test_dataset, batch_size=BATCH_SIZE)
         # return client_datasets, DataLoader(test_dataset, batch_size=BATCH_SIZE)
@@ -241,7 +241,7 @@ class GradientCompressor:
         elif mechanism == 'TERNGRAD':
             self.compressor_instance = TernGrad(epsilon)
     
-    def _sparsify(self, tensor):
+    def _sparsify(self, tensor,clipping_value=0):
         # Flatten the tensor
         tensor = tensor.view(-1)
         numel = tensor.numel()
@@ -262,15 +262,21 @@ class GradientCompressor:
             device_info = values.device
             values = values.cpu().numpy()
             # print("values.cpu().numpy()",values)
-            values = self.compressor_instance.compress(values)
+            if clipping_value != 0:
+                values = self.compressor_instance.compress(values,clipping_value)
+            else:
+                values = self.compressor_instance.compress(values)
             # print("self.compressor_instance.compress(values)",values)
             values = torch.from_numpy(values).to(device_info)
             # print("torch.from_numpy(values).to(device_info)",values)
         return values, indices, numel
 
-    def compress(self, tensor):
+    def compress(self, tensor, clipping_value=0):
         # Perform sparsification
-        values, indices, numel = self._sparsify(tensor)
+        if clipping_value != 0 :
+            values, indices, numel = self._sparsify(tensor, clipping_value)
+        else:
+            values, indices, numel = self._sparsify(tensor)
         
         # Return the compressed representation and the original tensor size
         return (values, indices, numel)
@@ -289,12 +295,15 @@ class GradientCompressor:
         # return decompressed_tensor.view(original_size)
 
     
-    def gradient_hook(self, grad):
+    def gradient_hook(self, grad, clipping_value=0):
         # print("param",param)
         # grad = param.grad
         # print("before gradient_hook grad",grad)
         # print("before gradient_hook grad.shape",grad.shape)
-        values, indices, numel = self.compress(grad)
+        if clipping_value != 0:
+            values, indices, numel = self.compress(grad,clipping_value)
+        else:
+            values, indices, numel = self.compress(grad)
         decompressed_tensor = self.decompress((values, indices, numel), grad.shape)
         grad = decompressed_tensor
         # print("after gradient_hook  grad",grad)
@@ -458,22 +467,29 @@ client_datasets, test_loader = load_data()
 def train_epoch(global_model, global_optimizer, client_datasets, test_loader, mechanism='BASELINE', out_bits=1):
     log_with_time(f"Start training ....")
     total_local_clients = NUM_CLIENTS_PER_NODE 
+    clipping_values = None
     global accumulated_gradients   
     for round in range(NUM_ROUNDS):
-        
+        total_steps = 0
         log_with_time(f"Round {round + 1}/{NUM_ROUNDS} started")
         selected_clients = random.sample(range(total_local_clients), total_local_clients // PARTITION)  # Randomly select half of the clients
         print("selected_clients",selected_clients)
         accumulated_gradients=None
+        zero_client_num = 0
         global_model.train()
         for client_idx in selected_clients:
+            client_loader = client_datasets[args.rank * NUM_CLIENTS_PER_NODE + client_idx]
+            if len(client_loader) == 0:
+                zero_client_num = zero_client_num+1
+                log_with_time(f"跳过 client {client_idx}：无数据")
+                continue
+            total_steps = total_steps + len(client_loader)
             accumulated_gradients_client=None
             log_with_time(f"Training client {client_idx}")
             global_model.load_state_dict(global_model_state.state_dict())
             optimizer = optimizers[client_idx]
             scheduler = schedulers[client_idx]
             criterion = nn.CrossEntropyLoss()
-            client_loader = client_datasets[args.rank * NUM_CLIENTS_PER_NODE + client_idx]
             for epoch in range(EPOCHS_PER_CLIENT):
                 log_with_time(f"Epoch {epoch + 1}")
             
@@ -495,29 +511,37 @@ def train_epoch(global_model, global_optimizer, client_datasets, test_loader, me
                 scheduler.step()
             
             if accumulated_gradients is None:
-                        accumulated_gradients = {name: torch.zeros_like(param.grad) for name, param in global_model.named_parameters() if param.requires_grad}
+                accumulated_gradients = {name: torch.zeros_like(param.grad) for name, param in global_model.named_parameters() if param.requires_grad}
                     
+            if clipping_values is None and mechanism == 'PPGC':
+                clipping_values = {name: None for name, param in global_model.named_parameters() if param.requires_grad}
+
             for name, param in global_model.named_parameters():
                 if param.requires_grad:
-                    accumulated_gradients_client[name] = gradient_compressor.gradient_hook(accumulated_gradients_client[name])
+                    if clipping_values is not None and mechanism == 'PPGC' and clipping_values[name] is not None:
+                        c = clipping_values[name].item()
+                        accumulated_gradients_client[name] = gradient_compressor.gradient_hook(accumulated_gradients_client[name],c)
+                    else: 
+                        accumulated_gradients_client[name] = gradient_compressor.gradient_hook(accumulated_gradients_client[name])
                     accumulated_gradients[name] += accumulated_gradients_client[name]
 
             aggregated_accuracy = test_model(global_model, test_loader)
             log_with_time(f"Model accuracy at client {client_idx} : {aggregated_accuracy:.4f}")
             print("optimizer.__getattribute__('param_groups')[0]['lr']",optimizer.__getattribute__('param_groups')[0]['lr'])
+        
+
         global_optimizer.zero_grad()
-        # dist.barrier()
-        # for name, param in global_model.named_parameters():
-        #     if param.requires_grad:    
-        #         dist.all_reduce(accumulated_gradients[name], op=dist.ReduceOp.SUM) 
-                # if name == "module.layer1.0.conv2.weight":
-                #     print("name before aggregation",name,accumulated_gradients[name][0][0]) 
+
         for name, param in global_model.named_parameters():
             if param.requires_grad: 
-                param.grad=accumulated_gradients[name].to(param.device) / (len(selected_clients)*len(client_loader)*EPOCHS_PER_CLIENT*args.world_size)
-                # param.data -= global_optimizer.__getattribute__('param_groups')[0]['lr'] * param.grad
-                # if name == "module.layer1.0.conv2.weight":    
-                #     print("global gradients after aggregation",param.grad[0][0])   
+                # param.grad=accumulated_gradients[name].to(param.device) / ((len(selected_clients)-zero_client_num)*len(client_loader)*EPOCHS_PER_CLIENT*args.world_size)
+                param.grad=accumulated_gradients[name].to(param.device) / (total_steps*EPOCHS_PER_CLIENT*args.world_size)
+                if mechanism == 'PPGC':
+                    tensor = param.grad.flatten()
+                    mean = torch.mean(tensor)
+                    std = torch.sqrt(torch.mean((tensor - mean) ** 2))
+                    c = 2.5 * std
+                    clipping_values[name] = c
 
         
         global_optimizer.step()

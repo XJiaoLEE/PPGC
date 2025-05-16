@@ -36,7 +36,53 @@ class PPGC:
 
         return np.array(outputs, dtype=np.float32), probabilities
 
-    def compress(self, param):
+    # def compress(self, param):
+    #     #---------在这里加入PPAGC的自适应模块，当quitbit=0时，进行自适应
+    #     #根据每次输入的梯度，计算梯度的范围，然后计算quitbit，进而计算outputs和probabilities
+
+
+    #     #gradient_vector = gradient_vector + self.error_feedback[name]
+
+    #     # 将梯度向量展平为一维
+    #     original_shape = param.shape
+    #     flatten_gradient_vector = param.flatten()
+
+    #     # 计算梯度绝对值的最大值并进行归一化
+    #     max_abs_value = np.max(np.abs(flatten_gradient_vector))
+    #     if max_abs_value == 0:  # 避免除以零
+    #         max_abs_value = 1.0
+    #     normalized_gradient_vector = flatten_gradient_vector / max_abs_value
+
+    #     # # 计算 L2 范数并进行归一化
+    #     # l2_norm = np.linalg.norm(flatten_gradient_vector, ord=2)
+    #     # if l2_norm == 0:  # 避免除以零
+    #     #     l2_norm = 1.0
+    #     # normalized_gradient_vector = flatten_gradient_vector / l2_norm
+
+    #     # 优化的量化过程
+    #     quantized_gradient = np.zeros_like(normalized_gradient_vector, dtype=np.float32)
+
+    #     # 预先计算概率矩阵，使用矢量化处理
+    #     prob_values = np.zeros((normalized_gradient_vector.size, len(self.outputs)), dtype=np.float32)
+    #     for idx, grad in enumerate(normalized_gradient_vector):
+    #         prob_values[idx] = [prob(float(grad)) for prob in self.probabilities]
+    #     prob_values = np.clip(prob_values, 0, 1)
+    #     prob_sums = prob_values.sum(axis=-1, keepdims=True)
+    #     prob_values /= prob_sums  # 归一化概率
+
+    #     # 使用矢量化随机选择输出
+    #     random_values = np.random.rand(normalized_gradient_vector.size, len(self.outputs))
+    #     chosen_indices = (random_values < np.cumsum(prob_values, axis=-1)).argmax(axis=-1)
+    #     quantized_gradient = self.outputs[chosen_indices]
+
+    #     # 恢复为原始形状
+    #     quantized_gradient = quantized_gradient.reshape(original_shape)
+    #     #self.error_feedback[name] = gradient_vector - quantized_gradient
+
+    #     return quantized_gradient
+    #     # return quantized_gradient * l2_norm
+
+    def compress(self, param,clipping_value=0):
         #---------在这里加入PPAGC的自适应模块，当quitbit=0时，进行自适应
         #根据每次输入的梯度，计算梯度的范围，然后计算quitbit，进而计算outputs和probabilities
 
@@ -46,12 +92,17 @@ class PPGC:
         # 将梯度向量展平为一维
         original_shape = param.shape
         flatten_gradient_vector = param.flatten()
+        if clipping_value != 0:
+            # flatten_gradient_vector = torch.clamp(flatten_gradient_vector,min=-clipping_value,max=clipping_value)
+            flatten_gradient_vector = np.clip(flatten_gradient_vector,-clipping_value,clipping_value)
+            normalized_gradient_vector = flatten_gradient_vector / clipping_value
 
         # 计算梯度绝对值的最大值并进行归一化
-        max_abs_value = np.max(np.abs(flatten_gradient_vector))
-        if max_abs_value == 0:  # 避免除以零
-            max_abs_value = 1.0
-        normalized_gradient_vector = flatten_gradient_vector / max_abs_value
+        else:
+            max_abs_value = np.max(np.abs(flatten_gradient_vector))
+            if max_abs_value == 0:  # 避免除以零
+                max_abs_value = 1.0
+            normalized_gradient_vector = flatten_gradient_vector / max_abs_value
 
         # # 计算 L2 范数并进行归一化
         # l2_norm = np.linalg.norm(flatten_gradient_vector, ord=2)
@@ -83,6 +134,7 @@ class PPGC:
         # return quantized_gradient * l2_norm
 
 
+
 class QSGD:
     def __init__(self, epsilon, out_bits):
         self.epsilon = epsilon
@@ -103,6 +155,15 @@ class QSGD:
         is_next_level = np.random.rand(*x.shape) < (level_float - previous_level)
         new_level = previous_level + is_next_level
         return norm * np.sign(x) *  new_level / self.out_bits
+        
+
+    # 反量化函数
+    def dequantize(self, new_level, norm, d):
+        """Dequantize the tensor to original scale."""
+        return norm * new_level / d
+    
+
+
         # return np.sign(x) *  new_level , norm
 
 
@@ -118,11 +179,6 @@ class QSGD:
         # new_level = previous_level + is_next_level
         # new_level = new_level * sign  # 保留符号信息
         # return new_level.astype(np.int8), norm  # 将符号应用到 new_level 上
-
-    # 反量化函数
-    def dequantize(self, new_level, norm, d):
-        """Dequantize the tensor to original scale."""
-        return norm * new_level / d
     
 class TernGrad:
     def __init__(self, epsilon):
@@ -346,15 +402,15 @@ class TopK:
 
 
 
-q = [0, 1, 0.5, 0.2, -0.3, -0.9]
-q = np.array(q)
-# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-# q = tensor = torch.tensor(q, device=device)
-terngrad_ = TopK(0.5)
-q1 , indices= terngrad_.sparsify(q)
-grad_np = np.zeros_like(q )
-grad_np[indices] = q1 
-p = terngrad_.compress(q)
-print("量化后的级别:", q1)
-print("量化后的级别:", p)
-print("量化后的级别:", grad_np)
+# q = [0, 1, 0.5, 0.2, -0.3, -0.9]
+# q = np.array(q)
+# # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# # q = tensor = torch.tensor(q, device=device)
+# terngrad_ = TopK(0.5)
+# q1 , indices= terngrad_.sparsify(q)
+# grad_np = np.zeros_like(q )
+# grad_np[indices] = q1 
+# p = terngrad_.compress(q)
+# print("量化后的级别:", q1)
+# print("量化后的级别:", p)
+# print("量化后的级别:", grad_np)
